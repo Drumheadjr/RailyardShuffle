@@ -10,12 +10,13 @@
 		"ghcr.io/devcontainers/features/node:1": {},
 		"ghcr.io/devcontainers/features/docker-in-docker": {}
 	},
-	"postCreateCommand": "./.devcontainer/setup.sh",
+	"containerUser": "vscode",
+	"postStartCommand": "./.devcontainer/setup.sh",
 	// This mount will make "local" data persistent for this dev container. This is important
 	// For AI tools as some make "memories" which normally are lost on devcontainer rebuild. 
 	"mounts": [
-		"source=web-vibes-ai-data,target=/home/vscode/.vscode-server/data/User/workspaceStorage,type=volume,volume-subpath=vscode",
-		"source=web-vibes-ai-data,target=/home/vscode/.claude,type=volume,volume-subpath=claude"
+		"source=ai-power-vscode-extension-data,target=/home/vscode/.vscode-server/data/User/workspaceStorage,type=volume",
+		"source=ai-power-claude-data,target=/home/vscode/.claude,type=volume"
 	],
 	"customizations": {
 		"vscode": {
