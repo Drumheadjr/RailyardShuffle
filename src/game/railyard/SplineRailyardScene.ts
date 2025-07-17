@@ -3,19 +3,16 @@ import { GameStateManager } from '../GameStateManager';
 import { GameStateType } from '@/types';
 import { RailyardLevel, RailyardGameState, TrainCar } from '@/types/railyard';
 import { SplineTrackSystem } from './SplineTrackSystem';
-import { SplineTrainCarSystem } from './SplineTrainCarSystem';
-import { LocomotiveSystem } from './LocomotiveSystem';
+import { EntitySystem } from './EntitySystem';
 import { SplineLevelBuilder, SplineLevelConfig } from './SplineLevelBuilder';
 import { COLORS, LOCOMOTIVE } from '@/constants/railyard';
 import { AssetManager } from '@/utils/AssetManager';
-import { BaseLinkableEntitySystem } from './BaseLinkableEntitySystem';
 
 export abstract class BaseSplineRailyardScene implements Scene {
   private gameStateManager: GameStateManager;
   private canvas: HTMLCanvasElement;
   private trackSystem: SplineTrackSystem;
-  private trainCarSystem: SplineTrainCarSystem;
-  private locomotiveSystem: LocomotiveSystem;
+  private entitySystem: EntitySystem;
   private gameState!: RailyardGameState;
   private lastMouseDown: boolean = false;
   private assetManager: AssetManager;
@@ -27,8 +24,7 @@ export abstract class BaseSplineRailyardScene implements Scene {
 
     // Initialize spline-based systems
     this.trackSystem = new SplineTrackSystem();
-    this.trainCarSystem = new SplineTrainCarSystem(this.trackSystem);
-    this.locomotiveSystem = new LocomotiveSystem(this.trackSystem);
+    this.entitySystem = new EntitySystem(this.trackSystem);
 
     // Initialize asset manager and load boxcar image
     this.assetManager = AssetManager.getInstance();
@@ -60,8 +56,7 @@ export abstract class BaseSplineRailyardScene implements Scene {
 
     // Clear existing data
     this.trackSystem = new SplineTrackSystem();
-    this.trainCarSystem = new SplineTrainCarSystem(this.trackSystem);
-    this.locomotiveSystem = new LocomotiveSystem(this.trackSystem);
+    this.entitySystem = new EntitySystem(this.trackSystem);
 
     // Load tracks
     level.tracks.forEach(track => {
@@ -76,14 +71,13 @@ export abstract class BaseSplineRailyardScene implements Scene {
     // Load locomotives
     level.locomotives.forEach(locomotive => {
       console.log(`Loading locomotive: ${locomotive.id}`);
-      this.locomotiveSystem.addLocomotive(locomotive);
-      this.trainCarSystem.addLocomotive(locomotive); // Also add to train car system for linking
+      this.entitySystem.addLocomotive(locomotive);
     });
 
     // Load train cars
     level.trainCars.forEach(car => {
       console.log(`Loading car: ${car.id} with target locomotive: ${car.targetLocomotive}`);
-      this.trainCarSystem.addCar(car);
+      this.entitySystem.addCar(car);
     });
 
     // Initialize game state
@@ -121,37 +115,24 @@ export abstract class BaseSplineRailyardScene implements Scene {
     if (mousePressed) {
       console.log(`Mouse pressed at: ${input.mouse.position.x}, ${input.mouse.position.y}`);
 
-      // Check for train cars first
-      const car = this.trainCarSystem.getCarAtPosition(input.mouse.position);
-      if (car && !car.isCompleted) {
-        console.log(`Starting spline drag for car: ${car.id}`);
-        this.trainCarSystem.startDrag(car.id, input.mouse.position);
+      // Check for any entity at the position
+      const entity = this.entitySystem.getEntityAtPosition(input.mouse.position);
+      if (entity && this.entitySystem.isDraggable(entity)) {
+        console.log(`Starting spline drag for entity: ${entity.id} (${entity.type})`);
+        this.entitySystem.startDrag(entity.id, input.mouse.position);
       } else {
-        // Check for locomotives if no car was found
-        const locomotive = this.locomotiveSystem.getEntityAtPosition(input.mouse.position);
-        if (locomotive) {
-          console.log(`Starting spline drag for locomotive: ${locomotive.id}`);
-          this.locomotiveSystem.startDrag(locomotive.id, input.mouse.position);
-        } else {
-          console.log('No car or locomotive found at position');
-        }
+        console.log('No draggable entity found at position');
       }
     }
 
-    // Update drag for whichever system is currently dragging
-    if (input.mouse.isDown) {
-      const activeDragSystem = this.getActiveDragSystem();
-      if (activeDragSystem) {
-        activeDragSystem.updateDrag(input.mouse.position);
-      }
+    // Update drag
+    if (input.mouse.isDown && this.entitySystem.getDragState().isDragging) {
+      this.entitySystem.updateDrag(input.mouse.position);
     }
 
-    // End drag for whichever system is currently dragging
-    if (mouseClicked) {
-      const activeDragSystem = this.getActiveDragSystem();
-      if (activeDragSystem) {
-        activeDragSystem.endDrag();
-      }
+    // End drag
+    if (mouseClicked && this.entitySystem.getDragState().isDragging) {
+      this.entitySystem.endDrag();
     }
 
     // Keyboard shortcuts
@@ -168,8 +149,7 @@ export abstract class BaseSplineRailyardScene implements Scene {
     if (this.gameState.isLevelComplete) return;
 
     // Update systems
-    this.trainCarSystem.update(deltaTime);
-    this.locomotiveSystem.update(deltaTime);
+    this.entitySystem.update(deltaTime);
 
     // Check for level completion
     this.checkLevelCompletion();
@@ -181,7 +161,7 @@ export abstract class BaseSplineRailyardScene implements Scene {
     const requiredConnections = this.gameState.level.objectives.requiredConnections;
     console.log(`Required connections for level completion:`, requiredConnections);
 
-    const isComplete = this.locomotiveSystem.checkLevelCompletion(requiredConnections);
+    const isComplete = this.entitySystem.checkLevelCompletion(requiredConnections);
 
     if (isComplete && !this.gameState.isLevelComplete) {
       this.gameState.isLevelComplete = true;
@@ -297,7 +277,7 @@ export abstract class BaseSplineRailyardScene implements Scene {
   }
 
   private renderLocomotives(ctx: CanvasRenderingContext2D): void {
-    const locomotives = this.locomotiveSystem.getAllLocomotives();
+    const locomotives = this.entitySystem.getAllLocomotives();
 
     locomotives.forEach(locomotive => {
       // Locomotive shadow
@@ -335,7 +315,7 @@ export abstract class BaseSplineRailyardScene implements Scene {
   }
 
   private renderTrainCars(ctx: CanvasRenderingContext2D): void {
-    const cars = this.trainCarSystem.getAllCars();
+    const cars = this.entitySystem.getAllCars();
 
     // First, render linking connections
     this.renderCarLinks(ctx, cars);
@@ -400,15 +380,7 @@ export abstract class BaseSplineRailyardScene implements Scene {
     ctx.fillRect(car.position.x + car.size.x - 10, car.position.y + 5, 5, 5);
   }
 
-  // Helper method to get the currently active drag system
-  private getActiveDragSystem(): BaseLinkableEntitySystem | null {
-    if (this.trainCarSystem.getDragState().isDragging) {
-      return this.trainCarSystem;
-    } else if (this.locomotiveSystem.getDragState().isDragging) {
-      return this.locomotiveSystem;
-    }
-    return null;
-  }
+  // Helper method removed - now using unified EntitySystem
 
   private renderCarLinks(ctx: CanvasRenderingContext2D, cars: TrainCar[]): void {
     const renderedLinks = new Set<string>();
@@ -457,7 +429,7 @@ export abstract class BaseSplineRailyardScene implements Scene {
   }
 
   private renderDragIndicators(ctx: CanvasRenderingContext2D): void {
-    const dragState = this.trainCarSystem.getDragState();
+    const dragState = this.entitySystem.getDragState();
     
     if (dragState.isDragging && dragState.validPositions.length > 0) {
       ctx.fillStyle = COLORS.DRAG_HIGHLIGHT;
