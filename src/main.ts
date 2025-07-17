@@ -53,8 +53,9 @@ class Game {
 
     const level2: Level = {
       id: 2,
-      name: "Draggable Test",
-      description: "Test level showing draggable and non-draggable entities",
+      name: "S-Curve Challenge",
+      description:
+        "Navigate the curved track with draggable and non-draggable entities",
       targetScore: 1000,
       createScene: () =>
         new RailyardLevel2Scene(this.engine.getGameStateManager(), this.canvas),
