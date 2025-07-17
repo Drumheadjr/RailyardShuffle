@@ -135,4 +135,100 @@ export class AssetManager {
       return this.loadMainMenuBackground();
     }
   }
+
+  // Load boxcar image for train cars
+  public async loadBoxcarImage(): Promise<HTMLImageElement> {
+    return this.loadImage({
+      name: 'boxcar',
+      basePath: '/assets/images/boxcar-01',
+      extensions: ['.png']
+    });
+  }
+
+  // Utility method to draw image with white background removal
+  public drawImageWithoutWhiteBackground(
+    ctx: CanvasRenderingContext2D,
+    image: HTMLImageElement,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number,
+    threshold: number = 240 // RGB values above this are considered "white"
+  ): void {
+    // Create a temporary canvas to process the image
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d')!;
+
+    tempCanvas.width = image.width;
+    tempCanvas.height = image.height;
+
+    // Draw the original image to temp canvas
+    tempCtx.drawImage(image, 0, 0);
+
+    // Get image data
+    const imageData = tempCtx.getImageData(0, 0, image.width, image.height);
+    const data = imageData.data;
+
+    // Remove white background by making white pixels transparent
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      // If pixel is close to white, make it transparent
+      if (r > threshold && g > threshold && b > threshold) {
+        data[i + 3] = 0; // Set alpha to 0 (transparent)
+      }
+    }
+
+    // Put the modified image data back
+    tempCtx.putImageData(imageData, 0, 0);
+
+    // Draw the processed image to the main canvas
+    ctx.drawImage(tempCanvas, dx, dy, dw, dh);
+  }
+
+  // Alternative method using CSS blend modes (simpler but less control)
+  public drawImageWithBlendMode(
+    ctx: CanvasRenderingContext2D,
+    image: HTMLImageElement,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number
+  ): void {
+    // Save current context state
+    ctx.save();
+
+    // Set blend mode to multiply (this will make white transparent)
+    ctx.globalCompositeOperation = 'multiply';
+
+    // Draw the image
+    ctx.drawImage(image, dx, dy, dw, dh);
+
+    // Restore context state
+    ctx.restore();
+  }
+
+  // Draw image with color tinting (to match train car colors)
+  public drawImageWithColorTint(
+    ctx: CanvasRenderingContext2D,
+    image: HTMLImageElement,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number,
+    tintColor: string,
+    threshold: number = 240
+  ): void {
+    // First draw the image without white background
+    this.drawImageWithoutWhiteBackground(ctx, image, dx, dy, dw, dh, threshold);
+
+    // Then apply color tint using blend mode
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = tintColor;
+    ctx.fillRect(dx, dy, dw, dh);
+    ctx.restore();
+  }
 }

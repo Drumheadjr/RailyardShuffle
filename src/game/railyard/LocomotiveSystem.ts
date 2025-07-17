@@ -2,7 +2,7 @@ import { Vector2 } from '@/types';
 import { Locomotive, TrainCar, TrainCarType } from '@/types/railyard';
 import { SplineTrackSystem } from './SplineTrackSystem';
 import { BaseLinkableEntitySystem, LinkableEntity } from './BaseLinkableEntitySystem';
-import { TRAIN_CAR } from '@/constants/railyard';
+import { TRAIN_CAR, LOCOMOTIVE } from '@/constants/railyard';
 
 export class LocomotiveSystem extends BaseLinkableEntitySystem {
   constructor(trackSystem: SplineTrackSystem) {
@@ -11,11 +11,11 @@ export class LocomotiveSystem extends BaseLinkableEntitySystem {
 
   // Entity-specific behavior implementations
   protected isDraggable(_entity: LinkableEntity): boolean {
-    return false; // Locomotives are not draggable
+    return true; // Locomotives are not draggable
   }
 
   protected isMovable(_entity: LinkableEntity): boolean {
-    return false; // Locomotives are not movable
+    return true; // Locomotives are not movable
   }
 
   protected getEntitySize(entity: LinkableEntity): { width: number; height: number } {
@@ -189,6 +189,8 @@ export class LocomotiveSystem extends BaseLinkableEntitySystem {
     this.removeEntity(locomotiveId);
   }
 
+  // getDragState() is now inherited from BaseLinkableEntitySystem
+
   // Create a standard locomotive
   public static createStandardLocomotive(
     id: string,
@@ -200,7 +202,7 @@ export class LocomotiveSystem extends BaseLinkableEntitySystem {
       id,
       type: TrainCarType.LOCOMOTIVE,
       position: { x: 0, y: 0 }, // Will be calculated from track position
-      size: { x: 45, y: 30 }, // Slightly larger than regular cars
+      size: { x: LOCOMOTIVE.WIDTH, y: LOCOMOTIVE.HEIGHT }, // Use constants for consistent sizing
       currentTrack: trackId,
       trackProgress: progress,
       color,
@@ -226,7 +228,7 @@ export class LocomotiveSystem extends BaseLinkableEntitySystem {
       id,
       type: TrainCarType.LOCOMOTIVE,
       position: { x: 0, y: 0 },
-      size: { x: 45, y: 30 },
+      size: { x: LOCOMOTIVE.WIDTH, y: LOCOMOTIVE.HEIGHT }, // Use constants for consistent sizing
       currentTrack: trackId,
       trackProgress: progress,
       color,

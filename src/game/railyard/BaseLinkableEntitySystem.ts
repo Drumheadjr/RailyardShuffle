@@ -64,17 +64,31 @@ export abstract class BaseLinkableEntitySystem {
     return pixelDistance / totalLength;
   }
 
-  // Get pixel distance between two entities on the same track
+  // Get pixel distance between two entities on the same track (center-to-center)
   protected getPixelDistanceBetweenEntities(entity1: LinkableEntity, entity2: LinkableEntity): number {
     if (entity1.currentTrack !== entity2.currentTrack) return Infinity;
-    
+
     const track = this.trackSystem.getTrack(entity1.currentTrack!);
     if (!track) return Infinity;
-    
+
     const pos1 = this.trackSystem.getPositionOnSpline(track.spline, entity1.trackProgress);
     const pos2 = this.trackSystem.getPositionOnSpline(track.spline, entity2.trackProgress);
-    
+
     return Math.sqrt(Math.pow(pos2.x - pos1.x, 2) + Math.pow(pos2.y - pos1.y, 2));
+  }
+
+  // Get edge-to-edge distance between two entities (for linking/collision detection)
+  protected getEdgeToEdgeDistance(entity1: LinkableEntity, entity2: LinkableEntity): number {
+    const centerDistance = this.getPixelDistanceBetweenEntities(entity1, entity2);
+    if (centerDistance === Infinity) return Infinity;
+
+    const size1 = this.getEntitySize(entity1);
+    const size2 = this.getEntitySize(entity2);
+
+    // Subtract half the width of each entity to get edge-to-edge distance
+    const edgeDistance = centerDistance - (size1.width / 2) - (size2.width / 2);
+
+    return Math.max(0, edgeDistance); // Don't return negative distances
   }
 
   // Link two entities together
@@ -160,47 +174,88 @@ export abstract class BaseLinkableEntitySystem {
   }
 
   // Position an entity at a fixed pixel distance from another entity
-  protected positionEntityAtFixedDistance(frontEntity: LinkableEntity, backEntity: LinkableEntity): void {
-    if (!frontEntity.currentTrack || frontEntity.currentTrack !== backEntity.currentTrack) return;
+  protected positionEntityAtFixedDistance(referenceEntity: LinkableEntity, entityToPosition: LinkableEntity): void {
+    if (!referenceEntity.currentTrack || referenceEntity.currentTrack !== entityToPosition.currentTrack) return;
 
-    const track = this.trackSystem.getTrack(frontEntity.currentTrack);
+    const track = this.trackSystem.getTrack(referenceEntity.currentTrack);
     if (!track) return;
 
-    // Find the position that is exactly LINKED_CAR_SPACING pixels behind the front entity
-    const targetDistance = TRAIN_CAR.LINKED_CAR_SPACING;
-    let bestProgress = backEntity.trackProgress;
+    // Calculate target distance based on entity sizes and desired gap
+    const refSize = this.getEntitySize(referenceEntity);
+    const posSize = this.getEntitySize(entityToPosition);
+    const desiredGap = 8; // Fixed gap between entities
+    const targetDistance = (refSize.width / 2) + (posSize.width / 2) + desiredGap;
+
+    // Determine direction: should entityToPosition be before or after referenceEntity?
+    // Check the current relative positions to maintain the same side
+    const currentRefPos = this.trackSystem.getPositionOnSpline(track.spline, referenceEntity.trackProgress);
+    const currentEntityPos = this.trackSystem.getPositionOnSpline(track.spline, entityToPosition.trackProgress);
+
+    // Determine if entity should be positioned to the left or right of reference
+    const shouldBeToTheRight = currentEntityPos.x > currentRefPos.x;
+
+    // Set search bounds based on direction
+    let minProgress: number;
+    let maxProgress: number;
+
+    if (shouldBeToTheRight) {
+      // Search for positions to the right (higher progress values)
+      minProgress = referenceEntity.trackProgress;
+      maxProgress = 1.0;
+    } else {
+      // Search for positions to the left (lower progress values)
+      minProgress = 0;
+      maxProgress = referenceEntity.trackProgress;
+    }
+
+    let bestProgress = entityToPosition.trackProgress;
     let bestDistance = Infinity;
 
-    // Sample positions along the track to find the one closest to our target distance
-    const samples = 200;
-    for (let i = 0; i < samples; i++) {
-      const testProgress = i / samples;
-      if (testProgress >= frontEntity.trackProgress) continue; // Only check positions behind the front entity
-      
-      const frontPos = this.trackSystem.getPositionOnSpline(track.spline, frontEntity.trackProgress);
-      const testPos = this.trackSystem.getPositionOnSpline(track.spline, testProgress);
-      const distance = Math.sqrt(Math.pow(testPos.x - frontPos.x, 2) + Math.pow(testPos.y - frontPos.y, 2));
-      
+    // Binary search with higher precision
+    for (let iteration = 0; iteration < 20; iteration++) {
+      const midProgress = (minProgress + maxProgress) / 2;
+
+      const refPos = this.trackSystem.getPositionOnSpline(track.spline, referenceEntity.trackProgress);
+      const testPos = this.trackSystem.getPositionOnSpline(track.spline, midProgress);
+      const distance = Math.sqrt(Math.pow(testPos.x - refPos.x, 2) + Math.pow(testPos.y - refPos.y, 2));
+
       if (Math.abs(distance - targetDistance) < Math.abs(bestDistance - targetDistance)) {
         bestDistance = distance;
-        bestProgress = testProgress;
+        bestProgress = midProgress;
+      }
+
+      // Adjust search bounds based on direction
+      if (shouldBeToTheRight) {
+        if (distance < targetDistance) {
+          minProgress = midProgress;
+        } else {
+          maxProgress = midProgress;
+        }
+      } else {
+        if (distance < targetDistance) {
+          maxProgress = midProgress;
+        } else {
+          minProgress = midProgress;
+        }
       }
     }
 
-    // Update the back entity's position
-    backEntity.trackProgress = bestProgress;
+    // Update the entity's position
+    entityToPosition.trackProgress = bestProgress;
     const splinePos = this.trackSystem.getPositionOnSpline(track.spline, bestProgress);
-    
+
     // Calculate position offset based on entity size
-    const offsetX = this.isLocomotive(backEntity) ? 22.5 : 17.5; // Half width
-    const offsetY = this.isLocomotive(backEntity) ? 15 : 12.5;   // Half height
-    
-    backEntity.position = {
+    const entitySize = this.getEntitySize(entityToPosition);
+    const offsetX = entitySize.width / 2;
+    const offsetY = entitySize.height / 2;
+
+    entityToPosition.position = {
       x: splinePos.x - offsetX,
       y: splinePos.y - offsetY
     };
 
-    console.log(`Positioned entity ${backEntity.id} at ${targetDistance}px distance (actual: ${bestDistance}px)`);
+    const direction = shouldBeToTheRight ? "right" : "left";
+    console.log(`Positioned entity ${entityToPosition.id} to the ${direction} of ${referenceEntity.id} at ${targetDistance}px target distance (actual: ${bestDistance.toFixed(1)}px, gap: ${desiredGap}px)`);
   }
 
   // Get all entities linked to this entity (including indirectly linked)
@@ -251,9 +306,10 @@ export abstract class BaseLinkableEntitySystem {
         if (track) {
           const splinePos = this.trackSystem.getPositionOnSpline(track.spline, entity.trackProgress);
           
-          // Calculate position offset based on entity type
-          const offsetX = this.isLocomotive(entity) ? 22.5 : 17.5;
-          const offsetY = this.isLocomotive(entity) ? 15 : 12.5;
+          // Calculate position offset based on entity size (use actual entity size)
+          const entitySize = this.getEntitySize(entity);
+          const offsetX = entitySize.width / 2;
+          const offsetY = entitySize.height / 2;
           
           const targetPosition = {
             x: splinePos.x - offsetX,
@@ -489,12 +545,13 @@ export abstract class BaseLinkableEntitySystem {
 
     for (const otherEntity of entitiesOnSameTrack) {
       console.log(`   Other entity ${otherEntity.id} at progress ${otherEntity.trackProgress} (${Math.round(otherEntity.trackProgress * 100)}%)`);
-      const pixelDistance = this.getPixelDistanceBetweenEntities(tempEntity, otherEntity);
-      console.log(`   Distance to entity ${otherEntity.id}: ${pixelDistance}px (linking threshold: ${TRAIN_CAR.LINKING_DISTANCE}px)`);
+      const centerDistance = this.getPixelDistanceBetweenEntities(tempEntity, otherEntity);
+      const edgeDistance = this.getEdgeToEdgeDistance(tempEntity, otherEntity);
+      console.log(`   Distance to entity ${otherEntity.id}: center=${centerDistance.toFixed(1)}px, edge=${edgeDistance.toFixed(1)}px (linking threshold: ${TRAIN_CAR.LINKING_DISTANCE}px)`);
 
-      // Check if entities are close enough to link
-      if (pixelDistance <= TRAIN_CAR.LINKING_DISTANCE && !movingEntity.linkedCars.includes(otherEntity.id)) {
-        console.log(`🎯 Entity ${movingEntity.id} and entity ${otherEntity.id} are close enough to link (pixel distance: ${pixelDistance})`);
+      // Check if entities are close enough to link (use edge-to-edge distance)
+      if (edgeDistance <= TRAIN_CAR.LINKING_DISTANCE && !movingEntity.linkedCars.includes(otherEntity.id)) {
+        console.log(`🎯 Entity ${movingEntity.id} and entity ${otherEntity.id} are close enough to link (edge distance: ${edgeDistance.toFixed(1)}px)`);
         return {
           canMove: true,
           adjustedProgress: targetProgress,
@@ -504,20 +561,21 @@ export abstract class BaseLinkableEntitySystem {
         console.log(`   Entity ${movingEntity.id} already linked to entity ${otherEntity.id}`);
       }
 
-      // Check for collision (too close but not linking) - use minimum spacing
-      const movingEntitySize = this.getEntitySize(movingEntity);
-      const otherEntitySize = this.getEntitySize(otherEntity);
-      const minPixelSeparation = Math.max(movingEntitySize.width, otherEntitySize.width) + 10;
+      // Check for collision (too close but not linking) - use minimum edge separation
+      const minEdgeSeparation = 5; // Minimum gap between entities
 
-      if (pixelDistance < minPixelSeparation) {
+      if (edgeDistance < minEdgeSeparation) {
         // Calculate adjusted position to maintain minimum separation
         const track = this.trackSystem.getTrack(movingEntity.currentTrack!);
         if (track) {
-          const progressDelta = this.pixelDistanceToProgressDelta(minPixelSeparation, movingEntity.currentTrack!);
+          const movingSize = this.getEntitySize(movingEntity);
+          const otherSize = this.getEntitySize(otherEntity);
+          const requiredCenterDistance = (movingSize.width / 2) + (otherSize.width / 2) + minEdgeSeparation;
+          const progressDelta = this.pixelDistanceToProgressDelta(requiredCenterDistance, movingEntity.currentTrack!);
           const pushDirection = targetProgress > otherEntity.trackProgress ? 1 : -1;
           const adjustedProgress = otherEntity.trackProgress + (pushDirection * progressDelta);
 
-          console.log(`Collision detected between ${movingEntity.id} and ${otherEntity.id}, adjusting position (pixel distance: ${pixelDistance})`);
+          console.log(`Collision detected between ${movingEntity.id} and ${otherEntity.id}, adjusting position (edge distance: ${edgeDistance.toFixed(1)}px)`);
           return {
             canMove: true,
             adjustedProgress: Math.max(0, Math.min(1, adjustedProgress))
@@ -535,6 +593,12 @@ export abstract class BaseLinkableEntitySystem {
 
     // Get all linked entities in order (front to back)
     const linkedEntities = this.getLinkedEntitiesInOrder(draggedEntity);
+
+    // Debug: Show the chain order and track progress
+    console.log(`Chain order (front to back):`);
+    linkedEntities.forEach((entity, index) => {
+      console.log(`  ${index}: ${entity.id} at progress ${entity.trackProgress.toFixed(3)} (${entity.trackProgress > 0.5 ? 'right' : 'left'} side)`);
+    });
 
     // Update positions maintaining fixed spacing
     for (let i = 0; i < linkedEntities.length; i++) {
@@ -618,5 +682,10 @@ export abstract class BaseLinkableEntitySystem {
            position.x <= entity.position.x + entitySize.width &&
            position.y >= entity.position.y &&
            position.y <= entity.position.y + entitySize.height;
+  }
+
+  // Get drag state (for scene integration)
+  public getDragState(): DragState {
+    return this.dragState;
   }
 }

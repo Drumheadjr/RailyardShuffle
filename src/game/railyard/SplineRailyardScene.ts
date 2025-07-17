@@ -6,7 +6,9 @@ import { SplineTrackSystem } from './SplineTrackSystem';
 import { SplineTrainCarSystem } from './SplineTrainCarSystem';
 import { LocomotiveSystem } from './LocomotiveSystem';
 import { SplineLevelBuilder, SplineLevelConfig } from './SplineLevelBuilder';
-import { COLORS } from '@/constants/railyard';
+import { COLORS, LOCOMOTIVE } from '@/constants/railyard';
+import { AssetManager } from '@/utils/AssetManager';
+import { BaseLinkableEntitySystem } from './BaseLinkableEntitySystem';
 
 export abstract class BaseSplineRailyardScene implements Scene {
   private gameStateManager: GameStateManager;
@@ -16,6 +18,8 @@ export abstract class BaseSplineRailyardScene implements Scene {
   private locomotiveSystem: LocomotiveSystem;
   private gameState!: RailyardGameState;
   private lastMouseDown: boolean = false;
+  private assetManager: AssetManager;
+  private boxcarImageLoaded: boolean = false;
 
   constructor(gameStateManager: GameStateManager, canvas: HTMLCanvasElement) {
     this.gameStateManager = gameStateManager;
@@ -26,6 +30,10 @@ export abstract class BaseSplineRailyardScene implements Scene {
     this.trainCarSystem = new SplineTrainCarSystem(this.trackSystem);
     this.locomotiveSystem = new LocomotiveSystem(this.trackSystem);
 
+    // Initialize asset manager and load boxcar image
+    this.assetManager = AssetManager.getInstance();
+    this.loadBoxcarImage();
+
     // Load level configuration from subclass
     const levelConfig = this.getSplineLevelConfig();
     const level = SplineLevelBuilder.buildLevel(levelConfig);
@@ -34,6 +42,18 @@ export abstract class BaseSplineRailyardScene implements Scene {
 
   // Abstract method that subclasses must implement
   protected abstract getSplineLevelConfig(): SplineLevelConfig;
+
+  // Load the boxcar image asset
+  private async loadBoxcarImage(): Promise<void> {
+    try {
+      const boxcarImage = await this.assetManager.loadBoxcarImage();
+      this.boxcarImageLoaded = true;
+      console.log(`✅ Boxcar image loaded successfully: ${boxcarImage.width}x${boxcarImage.height} (aspect ratio: ${(boxcarImage.width / boxcarImage.height).toFixed(2)}:1)`);
+    } catch (error) {
+      console.warn('❌ Failed to load boxcar image, falling back to rectangle rendering:', error);
+      this.boxcarImageLoaded = false;
+    }
+  }
 
   private loadLevel(level: RailyardLevel): void {
     console.log(`Loading spline railyard level: ${level.name}`);
@@ -100,21 +120,38 @@ export abstract class BaseSplineRailyardScene implements Scene {
     // Handle dragging
     if (mousePressed) {
       console.log(`Mouse pressed at: ${input.mouse.position.x}, ${input.mouse.position.y}`);
+
+      // Check for train cars first
       const car = this.trainCarSystem.getCarAtPosition(input.mouse.position);
       if (car && !car.isCompleted) {
         console.log(`Starting spline drag for car: ${car.id}`);
         this.trainCarSystem.startDrag(car.id, input.mouse.position);
       } else {
-        console.log('No car found or car is at exit');
+        // Check for locomotives if no car was found
+        const locomotive = this.locomotiveSystem.getEntityAtPosition(input.mouse.position);
+        if (locomotive) {
+          console.log(`Starting spline drag for locomotive: ${locomotive.id}`);
+          this.locomotiveSystem.startDrag(locomotive.id, input.mouse.position);
+        } else {
+          console.log('No car or locomotive found at position');
+        }
       }
     }
 
-    if (input.mouse.isDown && this.trainCarSystem.getDragState().isDragging) {
-      this.trainCarSystem.updateDrag(input.mouse.position);
+    // Update drag for whichever system is currently dragging
+    if (input.mouse.isDown) {
+      const activeDragSystem = this.getActiveDragSystem();
+      if (activeDragSystem) {
+        activeDragSystem.updateDrag(input.mouse.position);
+      }
     }
 
-    if (mouseClicked && this.trainCarSystem.getDragState().isDragging) {
-      this.trainCarSystem.endDrag();
+    // End drag for whichever system is currently dragging
+    if (mouseClicked) {
+      const activeDragSystem = this.getActiveDragSystem();
+      if (activeDragSystem) {
+        activeDragSystem.endDrag();
+      }
     }
 
     // Keyboard shortcuts
@@ -281,9 +318,9 @@ export abstract class BaseSplineRailyardScene implements Scene {
       // Locomotive details (chimney and front)
       ctx.fillStyle = COLORS.CAR_DETAILS;
       // Chimney
-      ctx.fillRect(locomotive.position.x + 5, locomotive.position.y - 3, 8, 8);
+      ctx.fillRect(locomotive.position.x + 5, locomotive.position.y - 3, LOCOMOTIVE.CHIMNEY_WIDTH, LOCOMOTIVE.CHIMNEY_HEIGHT);
       // Front detail
-      ctx.fillRect(locomotive.position.x + locomotive.size.x - 8, locomotive.position.y + 5, 6, locomotive.size.y - 10);
+      ctx.fillRect(locomotive.position.x + locomotive.size.x - 8, locomotive.position.y + LOCOMOTIVE.FRONT_DETAIL_MARGIN, LOCOMOTIVE.FRONT_DETAIL_WIDTH, locomotive.size.y - 10);
 
       // Connection indicator if locomotive has linked cars
       if (locomotive.linkedCars.length > 0) {
@@ -310,9 +347,29 @@ export abstract class BaseSplineRailyardScene implements Scene {
         ctx.fillRect(car.position.x + 2, car.position.y + 2, car.size.x, car.size.y);
       }
 
-      // Car body
-      ctx.fillStyle = car.color;
-      ctx.fillRect(car.position.x, car.position.y, car.size.x, car.size.y);
+      // Render car using boxcar image if loaded, otherwise use rectangle
+      if (this.boxcarImageLoaded) {
+        const boxcarImage = this.assetManager.getImage('boxcar');
+        if (boxcarImage) {
+          // Draw boxcar image with white background removal and color tinting
+          this.assetManager.drawImageWithColorTint(
+            ctx,
+            boxcarImage,
+            car.position.x,
+            car.position.y,
+            car.size.x,
+            car.size.y,
+            car.color,
+            240 // White threshold
+          );
+        } else {
+          // Fallback to rectangle if image failed to load
+          this.renderCarAsRectangle(ctx, car);
+        }
+      } else {
+        // Fallback to rectangle rendering
+        this.renderCarAsRectangle(ctx, car);
+      }
 
       // Car border (highlight if linked)
       const isLinked = car.linkedCars.length > 0;
@@ -320,11 +377,6 @@ export abstract class BaseSplineRailyardScene implements Scene {
                        isLinked ? COLORS.COMPLETION_SUCCESS : COLORS.CAR_BORDER_NORMAL;
       ctx.lineWidth = car.isDragging ? 3 : isLinked ? 3 : 2;
       ctx.strokeRect(car.position.x, car.position.y, car.size.x, car.size.y);
-
-      // Car details
-      ctx.fillStyle = COLORS.CAR_DETAILS;
-      ctx.fillRect(car.position.x + 5, car.position.y + 5, 5, 5);
-      ctx.fillRect(car.position.x + car.size.x - 10, car.position.y + 5, 5, 5);
 
       // Link indicator
       if (isLinked) {
@@ -334,6 +386,28 @@ export abstract class BaseSplineRailyardScene implements Scene {
         ctx.fillText('🔗', car.position.x + car.size.x / 2, car.position.y - 5);
       }
     });
+  }
+
+  // Helper method to render car as rectangle (fallback)
+  private renderCarAsRectangle(ctx: CanvasRenderingContext2D, car: TrainCar): void {
+    // Car body
+    ctx.fillStyle = car.color;
+    ctx.fillRect(car.position.x, car.position.y, car.size.x, car.size.y);
+
+    // Car details
+    ctx.fillStyle = COLORS.CAR_DETAILS;
+    ctx.fillRect(car.position.x + 5, car.position.y + 5, 5, 5);
+    ctx.fillRect(car.position.x + car.size.x - 10, car.position.y + 5, 5, 5);
+  }
+
+  // Helper method to get the currently active drag system
+  private getActiveDragSystem(): BaseLinkableEntitySystem | null {
+    if (this.trainCarSystem.getDragState().isDragging) {
+      return this.trainCarSystem;
+    } else if (this.locomotiveSystem.getDragState().isDragging) {
+      return this.locomotiveSystem;
+    }
+    return null;
   }
 
   private renderCarLinks(ctx: CanvasRenderingContext2D, cars: TrainCar[]): void {

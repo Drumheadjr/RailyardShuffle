@@ -17,15 +17,26 @@ export const TRACK = {
 
 // Train Car Constants
 export const TRAIN_CAR = {
-  WIDTH: 35,                  // Train car width
-  HEIGHT: 25,                 // Train car height
+  WIDTH: 50,                  // Train car width (increased for better boxcar proportions)
+  HEIGHT: 22,                 // Train car height (adjusted for ~2.3:1 aspect ratio)
   BORDER_WIDTH: 2,            // Normal border width
   DRAG_BORDER_WIDTH: 3,       // Border width when dragging
   SHADOW_OFFSET: 2,           // Shadow offset when not dragging
   DETAIL_SIZE: 5,             // Size of car detail squares
   DETAIL_OFFSET: 5,           // Offset of details from car edges
   LINKING_DISTANCE: 50,       // Fixed pixel distance for linking cars
-  LINKED_CAR_SPACING: 40      // Fixed pixel spacing between linked cars
+  LINKED_CAR_SPACING: 45      // Fixed pixel spacing between linked cars (adjusted for new width)
+} as const;
+
+// Locomotive Constants
+export const LOCOMOTIVE = {
+  WIDTH: 55,                  // Locomotive width (slightly larger than train cars)
+  HEIGHT: 28,                 // Locomotive height (proportionally larger)
+  BORDER_WIDTH: 3,            // Thicker border for locomotives
+  CHIMNEY_WIDTH: 8,           // Chimney width
+  CHIMNEY_HEIGHT: 8,          // Chimney height
+  FRONT_DETAIL_WIDTH: 6,      // Front detail width
+  FRONT_DETAIL_MARGIN: 5      // Margin for front detail positioning
 } as const;
 
 // Exit Constants

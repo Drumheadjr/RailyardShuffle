@@ -1,5 +1,5 @@
 import { Vector2 } from '@/types';
-import { TrainCar, DragState, Locomotive } from '@/types/railyard';
+import { TrainCar, Locomotive } from '@/types/railyard';
 import { SplineTrackSystem } from './SplineTrackSystem';
 import { BaseLinkableEntitySystem, LinkableEntity } from './BaseLinkableEntitySystem';
 import { TRAIN_CAR } from '@/constants/railyard';
@@ -73,7 +73,5 @@ export class SplineTrainCarSystem extends BaseLinkableEntitySystem {
     this.removeEntity(carId);
   }
 
-  public getDragState(): DragState {
-    return this.dragState;
-  }
+  // getDragState() is now inherited from BaseLinkableEntitySystem
 }
