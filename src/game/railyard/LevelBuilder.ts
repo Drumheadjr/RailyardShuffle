@@ -10,7 +10,7 @@ import {
   Direction,
   ExitSide
 } from '@/types/railyard';
-import { TRACK, TRAIN_CAR, EXIT, PLAY_AREA, LEVEL, COLORS } from '@/constants/railyard';
+import { TRACK, TRAIN_CAR, EXIT } from '@/constants/railyard';
 
 export class LevelBuilder {
 
@@ -241,65 +241,5 @@ export class LevelBuilder {
           y: track.position.y + track.size.y / 2 - carOffsetY
         };
     }
-  }
-
-  // Predefined level configurations
-  public static getLevel1Config(): LevelConfig {
-    const trackY = PLAY_AREA.DEFAULT_HEIGHT / 2 - TRACK.SIZE / 2; // Center vertically
-    const startX = 100;
-
-    return {
-      playArea: { width: PLAY_AREA.DEFAULT_WIDTH, height: PLAY_AREA.DEFAULT_HEIGHT },
-      trackLayout: [
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 2, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 3, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 4, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 5, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 6, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 7, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 8, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 9, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 10, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 11, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 12, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 13, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 14, y: trackY },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 15, y: trackY }
-      ],
-      exits: [
-        { side: ExitSide.RIGHT, position: LEVEL.EXIT_POSITION_DEFAULT, trackConnection: 15, color: COLORS.RED }
-      ],
-      cars: [
-        { trackIndex: 0, progress: LEVEL.CAR_PROGRESS_DEFAULT, color: COLORS.RED, targetExit: 0 }
-      ],
-      objective: 'Drag the red train car to the red exit on the right'
-    };
-  }
-
-  public static getLevel2Config(): LevelConfig {
-    return {
-      playArea: { width: 800, height: 600 },
-      trackLayout: [
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 160, y: 200 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 200, y: 200 },
-        { type: TrackType.CURVE_TOP_RIGHT, x: 240, y: 200 },
-        { type: TrackType.STRAIGHT_VERTICAL, x: 240, y: 240 },
-        { type: TrackType.STRAIGHT_VERTICAL, x: 240, y: 280 },
-        { type: TrackType.CURVE_BOTTOM_LEFT, x: 240, y: 320 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 280, y: 320 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 320, y: 320 }
-      ],
-      exits: [
-        { side: ExitSide.LEFT, position: 0.3, trackConnection: 0, color: '#4ECDC4' },
-        { side: ExitSide.RIGHT, position: 0.6, trackConnection: 7, color: '#FFE66D' }
-      ],
-      cars: [
-        { trackIndex: 1, progress: 0.5, color: '#4ECDC4', targetExit: 0 },
-        { trackIndex: 6, progress: 0.5, color: '#FFE66D', targetExit: 1 }
-      ],
-      objective: 'Move each colored car to its matching colored exit'
-    };
   }
 }

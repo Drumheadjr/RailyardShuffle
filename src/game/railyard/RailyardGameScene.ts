@@ -8,7 +8,7 @@ import { ExitSystem } from './ExitSystem';
 import { LevelBuilder } from './LevelBuilder';
 import { TRACK, TRAIN_CAR, COLORS } from '@/constants/railyard';
 
-export class RailyardGameScene implements Scene {
+export abstract class BaseRailyardScene implements Scene {
   private gameStateManager: GameStateManager;
   private canvas: HTMLCanvasElement;
   private trackSystem: TrackSystem;
@@ -17,23 +17,27 @@ export class RailyardGameScene implements Scene {
   private gameState!: RailyardGameState;
   private lastMouseDown: boolean = false;
 
-  constructor(gameStateManager: GameStateManager, canvas: HTMLCanvasElement, levelConfig?: any) {
+  constructor(gameStateManager: GameStateManager, canvas: HTMLCanvasElement) {
     this.gameStateManager = gameStateManager;
     this.canvas = canvas;
-    
+
     // Initialize systems
     this.trackSystem = new TrackSystem();
     this.trainCarSystem = new TrainCarSystem(this.trackSystem);
     this.exitSystem = new ExitSystem(
-      this.trackSystem, 
-      this.trainCarSystem, 
+      this.trackSystem,
+      this.trainCarSystem,
       { x: canvas.width, y: canvas.height }
     );
-    
-    // Load level (default to Level 1 if no config provided)
-    const level = levelConfig ? LevelBuilder.buildLevel(levelConfig) : LevelBuilder.buildLevel(LevelBuilder.getLevel1Config());
+
+    // Load level configuration from subclass
+    const levelConfig = this.getLevelConfig();
+    const level = LevelBuilder.buildLevel(levelConfig);
     this.loadLevel(level);
   }
+
+  // Abstract method that subclasses must implement
+  protected abstract getLevelConfig(): any;
 
   private loadLevel(level: RailyardLevel): void {
     console.log(`Loading railyard level: ${level.name}`);

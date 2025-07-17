@@ -2,9 +2,9 @@ import { GameEngine } from '@/game/GameEngine';
 import { MainMenuScene } from '@/game/MainMenuScene';
 import { LevelSelectScene } from '@/game/LevelSelectScene';
 
-import { Level3Scene } from '@/game/levels/Level3Scene';
-import { RailyardGameScene } from '@/game/railyard/RailyardGameScene';
-import { LevelBuilder } from '@/game/railyard/LevelBuilder';
+import { RailyardLevel1Scene } from '@/game/levels/RailyardLevel1Scene';
+import { RailyardLevel2Scene } from '@/game/levels/RailyardLevel2Scene';
+import { RailyardLevel3Scene } from '@/game/levels/RailyardLevel3Scene';
 import { LevelManager } from '@/game/LevelManager';
 import { GameStateType, Level, Scene } from '@/types';
 
@@ -39,7 +39,7 @@ class Game {
       name: 'First Delivery',
       description: 'Drag the train car to the exit',
       targetScore: 500,
-      createScene: () => new RailyardGameScene(this.engine.getGameStateManager(), this.canvas, LevelBuilder.getLevel1Config())
+      createScene: () => new RailyardLevel1Scene(this.engine.getGameStateManager(), this.canvas)
     };
 
     // Register Level 2 - Advanced Railyard
@@ -48,16 +48,16 @@ class Game {
       name: 'Color Sorting',
       description: 'Move each colored car to its matching exit',
       targetScore: 1000,
-      createScene: () => new RailyardGameScene(this.engine.getGameStateManager(), this.canvas, LevelBuilder.getLevel2Config())
+      createScene: () => new RailyardLevel2Scene(this.engine.getGameStateManager(), this.canvas)
     };
 
-    // Register Level 3
+    // Register Level 3 - Triple Track Challenge
     const level3: Level = {
       id: 3,
-      name: 'Coming Soon',
-      description: 'A placeholder level to demonstrate the system',
+      name: 'Triple Track Challenge',
+      description: 'Sort three trains: red, blue, and green cars to their matching exits',
       targetScore: 1500,
-      createScene: () => new Level3Scene(this.engine.getGameStateManager(), this.canvas)
+      createScene: () => new RailyardLevel3Scene(this.engine.getGameStateManager(), this.canvas)
     };
 
     this.levelManager.registerLevel(level1);
