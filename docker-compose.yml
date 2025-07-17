@@ -1,0 +1,20 @@
+services:
+  railyard-shuffle:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: railyard-shuffle-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+    working_dir: /workspace
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+    stdin_open: true
+    tty: true
+
+volumes:
+  node_modules:

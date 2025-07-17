@@ -4,11 +4,28 @@ A TypeScript-based puzzle game that runs in the browser, built with modern web d
 
 ## 🚀 Quick Start
 
-### Development
+### Docker Compose (Recommended)
 ```bash
+# Start the development environment
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the environment
+docker-compose down
+```
+
+### Local Development (Alternative)
+```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
-This starts the development server at `http://localhost:3000` with hot reload.
+
+Both methods start the development server at `http://localhost:3000` with hot reload.
 
 ### Building for Production
 ```bash
@@ -24,12 +41,30 @@ Serves the production build locally for testing.
 
 ## 🛠️ Available Scripts
 
+### NPM Scripts
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run type-check` - Run TypeScript type checking
 - `npm run clean` - Clean build artifacts
 - `npm run serve` - Build and serve production version
+
+### Docker Compose Scripts
+- `npm run docker:up` - Start Docker containers
+- `npm run docker:down` - Stop Docker containers
+- `npm run docker:build` - Build Docker images
+- `npm run docker:logs` - View container logs
+- `npm run docker:shell` - Open shell in container
+
+### Development Helper Script
+```bash
+# Use the development script for common operations
+./scripts/dev.sh up      # Start development environment
+./scripts/dev.sh down    # Stop development environment
+./scripts/dev.sh logs    # View logs
+./scripts/dev.sh shell   # Open container shell
+./scripts/dev.sh help    # Show all available commands
+```
 
 ## 🏗️ Project Structure
 
@@ -93,9 +128,22 @@ To build your puzzle game:
 ## 🐛 Development
 
 The project is set up with:
-- Port forwarding (3000) configured in devcontainer
-- TypeScript strict mode enabled
-- Modern ES2020 target
-- Path aliases (`@/` points to `src/`)
+- **Docker Compose** for consistent development environment
+- **Port forwarding** (3000) configured in devcontainer
+- **TypeScript** strict mode enabled
+- **Modern ES2020** target
+- **Path aliases** (`@/` points to `src/`)
+- **Hot reload** for instant feedback
+- **Volume mounting** for persistent node_modules
+
+### DevContainer Integration
+The project uses Docker Compose with VS Code DevContainers for a consistent development experience. When you rebuild the devcontainer, all dependencies and setup will be automatically handled.
+
+### Benefits of Docker Compose Setup
+- ✅ **No setup required** - Everything works out of the box
+- ✅ **Consistent environment** - Same setup across all machines
+- ✅ **Isolated dependencies** - No conflicts with host system
+- ✅ **Easy cleanup** - Remove everything with `docker-compose down -v`
+- ✅ **Persistent volumes** - node_modules cached between rebuilds
 
 Happy coding! 🎮

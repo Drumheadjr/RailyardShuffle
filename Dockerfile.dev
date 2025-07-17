@@ -1,0 +1,38 @@
+# Use Node.js 20 LTS as base image
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /workspace
+
+# Install system dependencies
+RUN apk add --no-cache \
+    git \
+    bash \
+    curl \
+    vim
+
+# Use the existing node user and rename it to vscode for consistency
+RUN deluser --remove-home node 2>/dev/null || true && \
+    addgroup -g 1000 vscode && \
+    adduser -u 1000 -G vscode -s /bin/bash -D vscode
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Install global dependencies
+RUN npm install -g @anthropic-ai/claude-code
+
+# Change ownership of node_modules to vscode user
+RUN chown -R vscode:vscode /workspace
+
+# Switch to non-root user
+USER vscode
+
+# Expose the development port
+EXPOSE 3000
+
+# Default command (can be overridden by docker-compose)
+CMD ["npm", "run", "dev"]

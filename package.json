@@ -10,7 +10,12 @@
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "serve": "npm run build && npm run preview"
+    "serve": "npm run build && npm run preview",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "docker:logs": "docker-compose logs -f",
+    "docker:shell": "docker-compose exec railyard-shuffle /bin/bash"
   },
   "keywords": [
     "puzzle",
