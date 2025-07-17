@@ -1,9 +1,10 @@
 import { GameEngine } from '@/game/GameEngine';
 import { MainMenuScene } from '@/game/MainMenuScene';
 import { LevelSelectScene } from '@/game/LevelSelectScene';
-import { Level1Scene } from '@/game/levels/Level1Scene';
-import { Level2Scene } from '@/game/levels/Level2Scene';
+
 import { Level3Scene } from '@/game/levels/Level3Scene';
+import { RailyardGameScene } from '@/game/railyard/RailyardGameScene';
+import { LevelBuilder } from '@/game/railyard/LevelBuilder';
 import { LevelManager } from '@/game/LevelManager';
 import { GameStateType, Level, Scene } from '@/types';
 
@@ -32,22 +33,22 @@ class Game {
   }
 
   private setupLevels(): void {
-    // Register Level 1
+    // Register Level 1 - New Railyard System
     const level1: Level = {
       id: 1,
-      name: 'Basic Sorting',
-      description: 'Learn the basics by moving boxes to their targets',
+      name: 'First Delivery',
+      description: 'Drag the train car to the exit',
       targetScore: 500,
-      createScene: () => new Level1Scene(this.engine.getGameStateManager(), this.canvas)
+      createScene: () => new RailyardGameScene(this.engine.getGameStateManager(), this.canvas, LevelBuilder.getLevel1Config())
     };
 
-    // Register Level 2
+    // Register Level 2 - Advanced Railyard
     const level2: Level = {
       id: 2,
-      name: 'Moving Platforms',
-      description: 'Jump on moving platforms and collect all gems',
+      name: 'Color Sorting',
+      description: 'Move each colored car to its matching exit',
       targetScore: 1000,
-      createScene: () => new Level2Scene(this.engine.getGameStateManager(), this.canvas)
+      createScene: () => new RailyardGameScene(this.engine.getGameStateManager(), this.canvas, LevelBuilder.getLevel2Config())
     };
 
     // Register Level 3
