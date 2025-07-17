@@ -1,16 +1,16 @@
 import { Vector2 } from '@/types';
-import { 
-  RailyardLevel, 
-  TrackSegment, 
-  TrackConnection, 
-  TrainCar, 
-  Exit,
+import {
+  RailyardLevel,
+  TrackSegment,
+  TrackConnection,
+  TrainCar,
+  Locomotive,
+  TrainCarType,
   TrackType,
   Direction,
-  ExitSide,
   SplinePoint
 } from '@/types/railyard';
-import { TRAIN_CAR, EXIT } from '@/constants/railyard';
+import { TRAIN_CAR } from '@/constants/railyard';
 
 // Simplified configuration for spline-based tracks
 export interface SplineTrackConfig {
@@ -23,18 +23,20 @@ export interface SplineTrackConfig {
 export interface SplineLevelConfig {
   playArea: { width: number; height: number };
   tracks: SplineTrackConfig[];
-  exits: {
+  locomotives: {
     id: string;
-    side: ExitSide;
-    position: number; // 0-1 along the side
-    connectedTrack: string; // Track ID
+    trackId: string;
+    progress: number; // 0-1 along track spline
     color?: string;
+    acceptedCarTypes?: TrainCarType[];
+    maxCars?: number;
   }[];
   cars: {
     trackId: string;
     progress: number; // 0-1 along track spline
     color: string;
-    targetExit?: string; // Exit ID
+    type?: TrainCarType;
+    targetLocomotive?: string; // Locomotive ID
   }[];
   objective: string;
 }
@@ -43,7 +45,7 @@ export class SplineLevelBuilder {
   public static buildLevel(config: SplineLevelConfig): RailyardLevel {
     const tracks: TrackSegment[] = [];
     const connections: TrackConnection[] = [];
-    const exits: Exit[] = [];
+    const locomotives: Locomotive[] = [];
     const trainCars: TrainCar[] = [];
 
     // Build tracks with splines
@@ -67,11 +69,11 @@ export class SplineLevelBuilder {
       if (trackConfig.connections) {
         trackConfig.connections.forEach(connectedId => {
           // Only add connection if it doesn't already exist
-          const existingConnection = connections.find(conn => 
+          const existingConnection = connections.find(conn =>
             (conn.from === trackConfig.id && conn.to === connectedId) ||
             (conn.from === connectedId && conn.to === trackConfig.id)
           );
-          
+
           if (!existingConnection) {
             connections.push({
               from: trackConfig.id,
@@ -84,17 +86,34 @@ export class SplineLevelBuilder {
       }
     });
 
-    // Build exits
-    config.exits.forEach(exitConfig => {
-      const exit: Exit = {
-        id: exitConfig.id,
-        side: exitConfig.side,
-        position: this.calculateExitPosition(exitConfig.side, exitConfig.position, config.playArea),
-        size: this.calculateExitSize(exitConfig.side),
-        connectedTrack: exitConfig.connectedTrack,
-        color: exitConfig.color
-      };
-      exits.push(exit);
+    // Build locomotives
+    config.locomotives.forEach(locoConfig => {
+      const track = tracks.find(t => t.id === locoConfig.trackId);
+      if (track) {
+        // Calculate position along spline
+        const splinePos = this.getPositionOnSpline(track.spline, locoConfig.progress);
+
+        const locomotive: Locomotive = {
+          id: locoConfig.id,
+          type: TrainCarType.LOCOMOTIVE,
+          position: {
+            x: splinePos.x - 22.5, // Half locomotive width (45/2)
+            y: splinePos.y - 15    // Half locomotive height (30/2)
+          },
+          size: { x: 45, y: 30 },
+          currentTrack: track.id,
+          trackProgress: locoConfig.progress,
+          color: locoConfig.color || '#2C3E50',
+          isDragging: false,
+          isCompleted: false,
+          acceptedCarTypes: locoConfig.acceptedCarTypes || [TrainCarType.REGULAR],
+          connectedCars: [],
+          maxCars: locoConfig.maxCars || 3,
+          isActive: true
+        };
+        locomotives.push(locomotive);
+        track.occupied = true;
+      }
     });
 
     // Build train cars
@@ -103,9 +122,10 @@ export class SplineLevelBuilder {
       if (track) {
         // Calculate position along spline
         const splinePos = this.getPositionOnSpline(track.spline, carConfig.progress);
-        
+
         const trainCar: TrainCar = {
           id: carConfig.trackId + '_car', // Simple ID generation
+          type: (carConfig.type as TrainCarType.REGULAR | TrainCarType.CARGO | TrainCarType.PASSENGER) || TrainCarType.REGULAR,
           position: {
             x: splinePos.x - TRAIN_CAR.WIDTH / 2,
             y: splinePos.y - TRAIN_CAR.HEIGHT / 2
@@ -115,8 +135,8 @@ export class SplineLevelBuilder {
           trackProgress: carConfig.progress,
           color: carConfig.color,
           isDragging: false,
-          isAtExit: false,
-          targetExit: carConfig.targetExit
+          isCompleted: false,
+          targetLocomotive: carConfig.targetLocomotive
         };
         trainCars.push(trainCar);
         track.occupied = true;
@@ -130,15 +150,15 @@ export class SplineLevelBuilder {
       playArea: config.playArea,
       tracks,
       connections,
-      exits,
+      locomotives,
       trainCars,
       objectives: {
         description: config.objective,
-        requiredExits: config.cars
-          .filter(car => car.targetExit)
+        requiredConnections: config.cars
+          .filter(car => car.targetLocomotive)
           .map(car => ({
             carId: car.trackId + '_car',
-            exitId: car.targetExit!
+            locomotiveId: car.targetLocomotive!
           }))
       }
     };
@@ -159,51 +179,7 @@ export class SplineLevelBuilder {
     }
   }
 
-  private static calculateExitPosition(side: ExitSide, positionPercent: number, playArea: { width: number; height: number }): Vector2 {
-    const exitWidth = EXIT.WIDTH;
-    const exitHeight = EXIT.HEIGHT;
-    
-    switch (side) {
-      case ExitSide.TOP:
-        return {
-          x: positionPercent * (playArea.width - exitWidth),
-          y: -exitHeight / 2
-        };
-      case ExitSide.BOTTOM:
-        return {
-          x: positionPercent * (playArea.width - exitWidth),
-          y: playArea.height - exitHeight / 2
-        };
-      case ExitSide.LEFT:
-        return {
-          x: -exitWidth / 2,
-          y: positionPercent * (playArea.height - exitHeight)
-        };
-      case ExitSide.RIGHT:
-        return {
-          x: playArea.width - exitWidth,
-          y: positionPercent * (playArea.height - exitHeight)
-        };
-      default:
-        return { x: 0, y: 0 };
-    }
-  }
-
-  private static calculateExitSize(side: ExitSide): Vector2 {
-    const exitWidth = EXIT.WIDTH;
-    const exitHeight = EXIT.HEIGHT;
-    
-    switch (side) {
-      case ExitSide.TOP:
-      case ExitSide.BOTTOM:
-        return { x: exitWidth, y: exitHeight };
-      case ExitSide.LEFT:
-      case ExitSide.RIGHT:
-        return { x: exitHeight, y: exitWidth };
-      default:
-        return { x: exitWidth, y: exitHeight };
-    }
-  }
+  // Exit-related methods removed - using locomotives instead
 
   // Simple linear interpolation for spline position calculation
   private static getPositionOnSpline(spline: SplinePoint[], t: number): Vector2 {

@@ -4,7 +4,7 @@ import { GameStateType } from '@/types';
 import { RailyardLevel, RailyardGameState } from '@/types/railyard';
 import { SplineTrackSystem } from './SplineTrackSystem';
 import { SplineTrainCarSystem } from './SplineTrainCarSystem';
-import { ExitSystem } from './ExitSystem';
+import { LocomotiveSystem } from './LocomotiveSystem';
 import { SplineLevelBuilder, SplineLevelConfig } from './SplineLevelBuilder';
 import { COLORS } from '@/constants/railyard';
 
@@ -13,23 +13,19 @@ export abstract class BaseSplineRailyardScene implements Scene {
   private canvas: HTMLCanvasElement;
   private trackSystem: SplineTrackSystem;
   private trainCarSystem: SplineTrainCarSystem;
-  private exitSystem: ExitSystem;
+  private locomotiveSystem: LocomotiveSystem;
   private gameState!: RailyardGameState;
   private lastMouseDown: boolean = false;
 
   constructor(gameStateManager: GameStateManager, canvas: HTMLCanvasElement) {
     this.gameStateManager = gameStateManager;
     this.canvas = canvas;
-    
+
     // Initialize spline-based systems
     this.trackSystem = new SplineTrackSystem();
     this.trainCarSystem = new SplineTrainCarSystem(this.trackSystem);
-    this.exitSystem = new ExitSystem(
-      this.trackSystem as any, // Type compatibility - ExitSystem needs updating
-      this.trainCarSystem as any, 
-      { x: canvas.width, y: canvas.height }
-    );
-    
+    this.locomotiveSystem = new LocomotiveSystem(this.trackSystem);
+
     // Load level configuration from subclass
     const levelConfig = this.getSplineLevelConfig();
     const level = SplineLevelBuilder.buildLevel(levelConfig);
@@ -41,15 +37,11 @@ export abstract class BaseSplineRailyardScene implements Scene {
 
   private loadLevel(level: RailyardLevel): void {
     console.log(`Loading spline railyard level: ${level.name}`);
-    
+
     // Clear existing data
     this.trackSystem = new SplineTrackSystem();
     this.trainCarSystem = new SplineTrainCarSystem(this.trackSystem);
-    this.exitSystem = new ExitSystem(
-      this.trackSystem as any,
-      this.trainCarSystem as any,
-      { x: level.playArea.width, y: level.playArea.height }
-    );
+    this.locomotiveSystem = new LocomotiveSystem(this.trackSystem);
 
     // Load tracks
     level.tracks.forEach(track => {
@@ -61,9 +53,9 @@ export abstract class BaseSplineRailyardScene implements Scene {
       this.trackSystem.addConnection(connection);
     });
 
-    // Load exits
-    level.exits.forEach(exit => {
-      this.exitSystem.addExit(exit);
+    // Load locomotives
+    level.locomotives.forEach(locomotive => {
+      this.locomotiveSystem.addLocomotive(locomotive);
     });
 
     // Load train cars
@@ -85,7 +77,7 @@ export abstract class BaseSplineRailyardScene implements Scene {
       score: 0
     };
 
-    console.log(`Spline level loaded: ${level.tracks.length} tracks, ${level.trainCars.length} cars, ${level.exits.length} exits`);
+    console.log(`Spline level loaded: ${level.tracks.length} tracks, ${level.trainCars.length} cars, ${level.locomotives.length} locomotives`);
   }
 
   public onEnter(): void {
@@ -106,7 +98,7 @@ export abstract class BaseSplineRailyardScene implements Scene {
     if (mousePressed) {
       console.log(`Mouse pressed at: ${input.mouse.position.x}, ${input.mouse.position.y}`);
       const car = this.trainCarSystem.getCarAtPosition(input.mouse.position);
-      if (car && !car.isAtExit) {
+      if (car && !car.isCompleted) {
         console.log(`Starting spline drag for car: ${car.id}`);
         this.trainCarSystem.startDrag(car.id, input.mouse.position);
       } else {
@@ -137,22 +129,38 @@ export abstract class BaseSplineRailyardScene implements Scene {
 
     // Update systems
     this.trainCarSystem.update(deltaTime);
-    this.exitSystem.update(deltaTime);
+    this.locomotiveSystem.update(deltaTime);
+
+    // Check for car-locomotive connections
+    this.checkCarLocomotiveConnections();
 
     // Check for level completion
     this.checkLevelCompletion();
   }
 
+  private checkCarLocomotiveConnections(): void {
+    const cars = this.trainCarSystem.getAllCars();
+
+    for (const car of cars) {
+      if (!car.isCompleted && !car.isDragging) {
+        const nearbyLocomotive = this.locomotiveSystem.findNearbyLocomotive(car);
+        if (nearbyLocomotive) {
+          this.locomotiveSystem.connectCarToLocomotive(car, nearbyLocomotive);
+        }
+      }
+    }
+  }
+
   private checkLevelCompletion(): void {
-    const isComplete = this.exitSystem.isLevelComplete(this.gameState.level.objectives.requiredExits);
-    
+    const isComplete = this.locomotiveSystem.checkLevelCompletion(this.gameState.level.objectives.requiredConnections);
+
     if (isComplete && !this.gameState.isLevelComplete) {
       this.gameState.isLevelComplete = true;
       this.gameState.score += 1000;
       this.gameStateManager.updateScore(this.gameState.score);
-      
+
       console.log('Spline level completed!');
-      
+
       // Transition to level complete state after a delay
       setTimeout(() => {
         this.gameStateManager.nextLevel();
@@ -173,10 +181,10 @@ export abstract class BaseSplineRailyardScene implements Scene {
 
     // Render spline tracks
     this.renderSplineTracks(ctx);
-    
-    // Render exits
-    this.renderExits(ctx);
-    
+
+    // Render locomotives
+    this.renderLocomotives(ctx);
+
     // Render train cars
     this.renderTrainCars(ctx);
     
@@ -259,24 +267,41 @@ export abstract class BaseSplineRailyardScene implements Scene {
     });
   }
 
-  private renderExits(ctx: CanvasRenderingContext2D): void {
-    const exits = this.exitSystem.getAllExits();
-    
-    exits.forEach(exit => {
-      // Exit background
-      ctx.fillStyle = exit.color || COLORS.EXIT_DEFAULT;
-      ctx.fillRect(exit.position.x, exit.position.y, exit.size.x, exit.size.y);
-      
-      // Exit border
-      ctx.strokeStyle = COLORS.EXIT_BORDER;
+  private renderLocomotives(ctx: CanvasRenderingContext2D): void {
+    const locomotives = this.locomotiveSystem.getAllLocomotives();
+
+    locomotives.forEach(locomotive => {
+      // Locomotive shadow
+      if (!locomotive.isDragging) {
+        ctx.fillStyle = COLORS.CAR_SHADOW;
+        ctx.fillRect(locomotive.position.x + 2, locomotive.position.y + 2, locomotive.size.x, locomotive.size.y);
+      }
+
+      // Locomotive body (slightly different styling than regular cars)
+      ctx.fillStyle = locomotive.color;
+      ctx.fillRect(locomotive.position.x, locomotive.position.y, locomotive.size.x, locomotive.size.y);
+
+      // Locomotive border (thicker than regular cars)
+      ctx.strokeStyle = locomotive.isActive ? COLORS.CAR_BORDER_NORMAL : COLORS.CAR_BORDER_DRAGGING;
       ctx.lineWidth = 3;
-      ctx.strokeRect(exit.position.x, exit.position.y, exit.size.x, exit.size.y);
-      
-      // Exit arrow
-      ctx.fillStyle = COLORS.EXIT_ARROW;
-      ctx.font = 'bold 20px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('→', exit.position.x + exit.size.x / 2, exit.position.y + exit.size.y / 2 + 7);
+      ctx.strokeRect(locomotive.position.x, locomotive.position.y, locomotive.size.x, locomotive.size.y);
+
+      // Locomotive details (chimney and front)
+      ctx.fillStyle = COLORS.CAR_DETAILS;
+      // Chimney
+      ctx.fillRect(locomotive.position.x + 5, locomotive.position.y - 3, 8, 8);
+      // Front detail
+      ctx.fillRect(locomotive.position.x + locomotive.size.x - 8, locomotive.position.y + 5, 6, locomotive.size.y - 10);
+
+      // Connection indicator if locomotive has connected cars
+      if (locomotive.connectedCars.length > 0) {
+        ctx.fillStyle = COLORS.COMPLETION_SUCCESS;
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${locomotive.connectedCars.length}`,
+          locomotive.position.x + locomotive.size.x / 2,
+          locomotive.position.y + locomotive.size.y / 2 + 4);
+      }
     });
   }
 

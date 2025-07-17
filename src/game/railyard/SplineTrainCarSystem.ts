@@ -36,7 +36,7 @@ export class SplineTrainCarSystem {
 
   public startDrag(carId: string, mousePosition: Vector2): boolean {
     const car = this.cars.get(carId);
-    if (!car || car.isAtExit) return false;
+    if (!car || car.isCompleted) return false;
 
     // Calculate drag offset
     this.dragState.dragOffset = {

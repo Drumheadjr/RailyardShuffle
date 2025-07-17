@@ -1,7 +1,7 @@
 import { GameStateManager } from '../GameStateManager';
 import { BaseSplineRailyardScene } from '../railyard/SplineRailyardScene';
 import { SplineLevelConfig } from '../railyard/SplineLevelBuilder';
-import { ExitSide } from '@/types/railyard';
+import { TrainCarType } from '@/types/railyard';
 import { PLAY_AREA, COLORS } from '@/constants/railyard';
 
 export class RailyardLevel1Scene extends BaseSplineRailyardScene {
@@ -27,13 +27,14 @@ export class RailyardLevel1Scene extends BaseSplineRailyardScene {
           connections: []
         }
       ],
-      exits: [
+      locomotives: [
         {
-          id: 'exit_right',
-          side: ExitSide.RIGHT,
-          position: 0.5,
-          connectedTrack: 'main_track',
-          color: COLORS.RED
+          id: 'red_locomotive',
+          trackId: 'main_track',
+          progress: 0.9, // Near the right end
+          color: COLORS.RED,
+          acceptedCarTypes: [TrainCarType.REGULAR],
+          maxCars: 1
         }
       ],
       cars: [
@@ -41,10 +42,11 @@ export class RailyardLevel1Scene extends BaseSplineRailyardScene {
           trackId: 'main_track',
           progress: 0.1, // Start near the left
           color: COLORS.RED,
-          targetExit: 'exit_right'
+          type: TrainCarType.REGULAR,
+          targetLocomotive: 'red_locomotive'
         }
       ],
-      objective: 'Drag the red train car along the spline to the red exit on the right'
+      objective: 'Drag the red train car along the spline to connect it to the red locomotive'
     };
   }
 }

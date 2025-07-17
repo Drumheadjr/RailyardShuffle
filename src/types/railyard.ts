@@ -45,16 +45,36 @@ export interface TrackConnection {
   toDirection: Direction;
 }
 
-export interface TrainCar {
+export enum TrainCarType {
+  REGULAR = 'REGULAR',
+  LOCOMOTIVE = 'LOCOMOTIVE',
+  CARGO = 'CARGO',
+  PASSENGER = 'PASSENGER'
+}
+
+export interface BaseTrainCar {
   id: string;
+  type: TrainCarType;
   position: Vector2;
   size: Vector2;
   currentTrack: string | null;
   trackProgress: number; // 0-1, position along the track
   color: string;
   isDragging: boolean;
-  isAtExit: boolean;
-  targetExit?: string;
+  isCompleted: boolean; // Replaces isAtExit for more general completion
+}
+
+export interface TrainCar extends BaseTrainCar {
+  type: TrainCarType.REGULAR | TrainCarType.CARGO | TrainCarType.PASSENGER;
+  targetLocomotive?: string; // ID of locomotive this car should connect to
+}
+
+export interface Locomotive extends BaseTrainCar {
+  type: TrainCarType.LOCOMOTIVE;
+  acceptedCarTypes: TrainCarType[]; // Which car types this locomotive accepts
+  connectedCars: string[]; // IDs of cars currently connected to this locomotive
+  maxCars: number; // Maximum number of cars this locomotive can pull
+  isActive: boolean; // Whether this locomotive is currently accepting cars
 }
 
 export interface Exit {
@@ -77,11 +97,11 @@ export interface RailyardLevel {
   };
   tracks: TrackSegment[];
   connections: TrackConnection[];
-  exits: Exit[];
+  locomotives: Locomotive[];
   trainCars: TrainCar[];
   objectives: {
     description: string;
-    requiredExits: { carId: string; exitId: string }[];
+    requiredConnections: { carId: string; locomotiveId: string }[];
   };
 }
 
