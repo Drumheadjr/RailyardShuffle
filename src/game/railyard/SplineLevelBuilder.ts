@@ -1,16 +1,15 @@
-import { Vector2 } from '@/types';
+import { Vector2 } from "@/types";
 import {
   RailyardLevel,
   TrackSegment,
   TrackConnection,
-  TrainCar,
-  Locomotive,
   TrainCarType,
   TrackType,
   Direction,
-  SplinePoint
-} from '@/types/railyard';
-import { TRAIN_CAR } from '@/constants/railyard';
+  SplinePoint,
+} from "@/types/railyard";
+import { TRAIN_CAR } from "@/constants/railyard";
+import { TrainCar, Locomotive } from "./entities";
 
 // Simplified configuration for spline-based tracks
 export interface SplineTrackConfig {
@@ -30,6 +29,7 @@ export interface SplineLevelConfig {
     color?: string;
     acceptedCarTypes?: TrainCarType[];
     maxCars?: number;
+    isDraggable?: boolean;
   }[];
   cars: {
     trackId: string;
@@ -37,6 +37,7 @@ export interface SplineLevelConfig {
     color: string;
     type?: TrainCarType;
     targetLocomotive?: string; // Locomotive ID
+    isDraggable?: boolean;
   }[];
   objective: string;
 }
@@ -45,13 +46,13 @@ export class SplineLevelBuilder {
   public static buildLevel(config: SplineLevelConfig): RailyardLevel {
     const tracks: TrackSegment[] = [];
     const connections: TrackConnection[] = [];
-    const locomotives: Locomotive[] = [];
-    const trainCars: TrainCar[] = [];
+    const locomotives: any[] = []; // Use any for now to avoid type conflicts
+    const trainCars: any[] = []; // Use any for now to avoid type conflicts
 
     // Build tracks with splines
-    config.tracks.forEach(trackConfig => {
-      const splinePoints: SplinePoint[] = trackConfig.points.map(point => ({
-        position: point
+    config.tracks.forEach((trackConfig) => {
+      const splinePoints: SplinePoint[] = trackConfig.points.map((point) => ({
+        position: point,
       }));
 
       const track: TrackSegment = {
@@ -59,19 +60,20 @@ export class SplineLevelBuilder {
         type: trackConfig.type,
         spline: splinePoints,
         connections: this.getDefaultConnections(trackConfig.type),
-        occupied: false
+        occupied: false,
       };
       tracks.push(track);
     });
 
     // Build connections based on track configuration
-    config.tracks.forEach(trackConfig => {
+    config.tracks.forEach((trackConfig) => {
       if (trackConfig.connections) {
-        trackConfig.connections.forEach(connectedId => {
+        trackConfig.connections.forEach((connectedId) => {
           // Only add connection if it doesn't already exist
-          const existingConnection = connections.find(conn =>
-            (conn.from === trackConfig.id && conn.to === connectedId) ||
-            (conn.from === connectedId && conn.to === trackConfig.id)
+          const existingConnection = connections.find(
+            (conn) =>
+              (conn.from === trackConfig.id && conn.to === connectedId) ||
+              (conn.from === connectedId && conn.to === trackConfig.id)
           );
 
           if (!existingConnection) {
@@ -79,7 +81,7 @@ export class SplineLevelBuilder {
               from: trackConfig.id,
               to: connectedId,
               fromDirection: Direction.EAST, // Simplified - splines handle direction
-              toDirection: Direction.WEST
+              toDirection: Direction.WEST,
             });
           }
         });
@@ -87,30 +89,36 @@ export class SplineLevelBuilder {
     });
 
     // Build locomotives
-    config.locomotives.forEach(locoConfig => {
-      const track = tracks.find(t => t.id === locoConfig.trackId);
+    config.locomotives.forEach((locoConfig) => {
+      const track = tracks.find((t) => t.id === locoConfig.trackId);
       if (track) {
         // Calculate position along spline
-        const splinePos = this.getPositionOnSpline(track.spline, locoConfig.progress);
+        const splinePos = this.getPositionOnSpline(
+          track.spline,
+          locoConfig.progress
+        );
 
-        const locomotive: Locomotive = {
+        const locomotive = new Locomotive({
           id: locoConfig.id,
           type: TrainCarType.LOCOMOTIVE,
           position: {
             x: splinePos.x - 22.5, // Half locomotive width (45/2)
-            y: splinePos.y - 15    // Half locomotive height (30/2)
+            y: splinePos.y - 15, // Half locomotive height (30/2)
           },
           size: { x: 45, y: 30 },
           currentTrack: track.id,
           trackProgress: locoConfig.progress,
-          color: locoConfig.color || '#2C3E50',
+          color: locoConfig.color || "#2C3E50",
           isDragging: false,
           isCompleted: false,
           linkedCars: [],
-          acceptedCarTypes: locoConfig.acceptedCarTypes || [TrainCarType.REGULAR],
+          acceptedCarTypes: locoConfig.acceptedCarTypes || [
+            TrainCarType.REGULAR,
+          ],
           maxCars: locoConfig.maxCars || 3,
-          isActive: true
-        };
+          isActive: true,
+          isDraggable: locoConfig.isDraggable ?? true, // Use config value or default to draggable
+        });
         locomotives.push(locomotive);
         track.occupied = true;
       }
@@ -118,17 +126,24 @@ export class SplineLevelBuilder {
 
     // Build train cars
     config.cars.forEach((carConfig, index) => {
-      const track = tracks.find(t => t.id === carConfig.trackId);
+      const track = tracks.find((t) => t.id === carConfig.trackId);
       if (track) {
         // Calculate position along spline
-        const splinePos = this.getPositionOnSpline(track.spline, carConfig.progress);
+        const splinePos = this.getPositionOnSpline(
+          track.spline,
+          carConfig.progress
+        );
 
-        const trainCar: TrainCar = {
-          id: carConfig.trackId + '_car_' + index, // Unique ID generation
-          type: (carConfig.type as TrainCarType.REGULAR | TrainCarType.CARGO | TrainCarType.PASSENGER) || TrainCarType.REGULAR,
+        const trainCar = new TrainCar({
+          id: carConfig.trackId + "_car_" + index, // Unique ID generation
+          type:
+            (carConfig.type as
+              | TrainCarType.REGULAR
+              | TrainCarType.CARGO
+              | TrainCarType.PASSENGER) || TrainCarType.REGULAR,
           position: {
             x: splinePos.x - TRAIN_CAR.WIDTH / 2,
-            y: splinePos.y - TRAIN_CAR.HEIGHT / 2
+            y: splinePos.y - TRAIN_CAR.HEIGHT / 2,
           },
           size: { x: TRAIN_CAR.WIDTH, y: TRAIN_CAR.HEIGHT },
           currentTrack: track.id,
@@ -137,8 +152,9 @@ export class SplineLevelBuilder {
           isDragging: false,
           isCompleted: false,
           linkedCars: [],
-          targetLocomotive: carConfig.targetLocomotive
-        };
+          targetLocomotive: carConfig.targetLocomotive,
+          isDraggable: carConfig.isDraggable ?? true, // Use config value or default to draggable
+        });
         trainCars.push(trainCar);
         track.occupied = true;
       }
@@ -146,7 +162,7 @@ export class SplineLevelBuilder {
 
     return {
       id: 1,
-      name: 'Spline Level',
+      name: "Spline Level",
       description: config.objective,
       playArea: config.playArea,
       tracks,
@@ -156,12 +172,12 @@ export class SplineLevelBuilder {
       objectives: {
         description: config.objective,
         requiredConnections: config.cars
-          .filter(car => car.targetLocomotive)
+          .filter((car) => car.targetLocomotive)
           .map((car, index) => ({
-            carId: car.trackId + '_car_' + index,
-            locomotiveId: car.targetLocomotive!
-          }))
-      }
+            carId: car.trackId + "_car_" + index,
+            locomotiveId: car.targetLocomotive!,
+          })),
+      },
     };
   }
 
@@ -172,7 +188,12 @@ export class SplineLevelBuilder {
       case TrackType.CURVE:
         return [Direction.NORTH, Direction.EAST];
       case TrackType.INTERSECTION:
-        return [Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST];
+        return [
+          Direction.NORTH,
+          Direction.SOUTH,
+          Direction.EAST,
+          Direction.WEST,
+        ];
       case TrackType.SWITCH:
         return [Direction.NORTH, Direction.SOUTH, Direction.EAST];
       default:
@@ -183,70 +204,87 @@ export class SplineLevelBuilder {
   // Exit-related methods removed - using locomotives instead
 
   // Simple linear interpolation for spline position calculation
-  private static getPositionOnSpline(spline: SplinePoint[], t: number): Vector2 {
+  private static getPositionOnSpline(
+    spline: SplinePoint[],
+    t: number
+  ): Vector2 {
     if (spline.length === 0) return { x: 0, y: 0 };
     if (spline.length === 1) return spline[0].position;
-    
+
     // Clamp t to [0, 1]
     t = Math.max(0, Math.min(1, t));
-    
+
     if (spline.length === 2) {
       // Linear interpolation for 2 points
       const p1 = spline[0].position;
       const p2 = spline[1].position;
       return {
         x: p1.x + (p2.x - p1.x) * t,
-        y: p1.y + (p2.y - p1.y) * t
+        y: p1.y + (p2.y - p1.y) * t,
       };
     }
-    
+
     // For multiple points, find the segment and interpolate
     const segmentCount = spline.length - 1;
     const segment = Math.floor(t * segmentCount);
-    const localT = (t * segmentCount) - segment;
-    
+    const localT = t * segmentCount - segment;
+
     const p1 = spline[Math.min(segment, spline.length - 1)].position;
     const p2 = spline[Math.min(segment + 1, spline.length - 1)].position;
-    
+
     return {
       x: p1.x + (p2.x - p1.x) * localT,
-      y: p1.y + (p2.y - p1.y) * localT
+      y: p1.y + (p2.y - p1.y) * localT,
     };
   }
 
   // Helper methods for creating common track shapes
-  public static createStraightTrack(id: string, start: Vector2, end: Vector2): SplineTrackConfig {
+  public static createStraightTrack(
+    id: string,
+    start: Vector2,
+    end: Vector2
+  ): SplineTrackConfig {
     return {
       id,
       type: TrackType.STRAIGHT,
-      points: [start, end]
+      points: [start, end],
     };
   }
 
-  public static createCurvedTrack(id: string, start: Vector2, control: Vector2, end: Vector2): SplineTrackConfig {
+  public static createCurvedTrack(
+    id: string,
+    start: Vector2,
+    control: Vector2,
+    end: Vector2
+  ): SplineTrackConfig {
     return {
       id,
       type: TrackType.CURVE,
-      points: [start, control, end]
+      points: [start, control, end],
     };
   }
 
-  public static createSmoothCurve(id: string, start: Vector2, end: Vector2, curvature: number = 0.5): SplineTrackConfig {
+  public static createSmoothCurve(
+    id: string,
+    start: Vector2,
+    end: Vector2,
+    curvature: number = 0.5
+  ): SplineTrackConfig {
     const midX = (start.x + end.x) / 2;
     const midY = (start.y + end.y) / 2;
-    
+
     // Create control point offset perpendicular to the line
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const perpX = -dy * curvature;
     const perpY = dx * curvature;
-    
+
     const control = { x: midX + perpX, y: midY + perpY };
-    
+
     return {
       id,
       type: TrackType.CURVE,
-      points: [start, control, end]
+      points: [start, control, end],
     };
   }
 }

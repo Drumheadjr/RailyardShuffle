@@ -1,26 +1,28 @@
 import { Vector2 } from "@/types";
 import {
-  TrainCar,
-  Locomotive,
+  TrainCar as ITrainCar,
+  Locomotive as ILocomotive,
   DragState,
-  TrainCarType,
 } from "@/types/railyard";
 import { SplineTrackSystem } from "./SplineTrackSystem";
 import { TRAIN_CAR } from "@/constants/railyard";
-
-// Union type for all entities
-export type Entity = TrainCar | Locomotive;
+import { Entity, TrainCar, Locomotive } from "./entities";
 
 export class EntitySystem {
   private entities: Map<string, Entity> = new Map();
   private trackSystem: SplineTrackSystem;
-  private dragState: DragState;
+  private dragState: {
+    isDragging: boolean;
+    draggedEntity: Entity | null;
+    dragOffset: Vector2;
+    validPositions: Vector2[];
+  };
 
   constructor(trackSystem: SplineTrackSystem) {
     this.trackSystem = trackSystem;
     this.dragState = {
       isDragging: false,
-      draggedCar: null,
+      draggedEntity: null,
       dragOffset: { x: 0, y: 0 },
       validPositions: [],
     };
@@ -58,20 +60,16 @@ export class EntitySystem {
 
   // Type guards
   public isTrainCar(entity: Entity): entity is TrainCar {
-    return entity.type !== TrainCarType.LOCOMOTIVE;
+    return entity instanceof TrainCar;
   }
 
   public isLocomotive(entity: Entity): entity is Locomotive {
-    return entity.type === TrainCarType.LOCOMOTIVE;
+    return entity instanceof Locomotive;
   }
 
   // Entity behavior checks
   public isDraggable(entity: Entity): boolean {
-    if (this.isLocomotive(entity)) {
-      return true; // Locomotives are draggable
-    } else {
-      return !entity.isCompleted; // Train cars are draggable unless completed
-    }
+    return entity.isDraggable;
   }
 
   public isMovable(_entity: Entity): boolean {
@@ -79,19 +77,19 @@ export class EntitySystem {
   }
 
   public getEntitySize(entity: Entity): { width: number; height: number } {
-    if (this.isLocomotive(entity)) {
-      return { width: entity.size.x, height: entity.size.y };
-    } else {
-      return { width: TRAIN_CAR.WIDTH, height: TRAIN_CAR.HEIGHT };
-    }
+    return entity.getEntitySize();
   }
 
   // Convenience methods for backward compatibility
-  public addCar(car: TrainCar): void {
+  public addCar(carData: ITrainCar & { isDraggable?: boolean }): void {
+    const car = new TrainCar(carData);
     this.addEntity(car);
   }
 
-  public addLocomotive(locomotive: Locomotive): void {
+  public addLocomotive(
+    locomotiveData: ILocomotive & { isDraggable?: boolean }
+  ): void {
+    const locomotive = new Locomotive(locomotiveData);
     this.addEntity(locomotive);
   }
 
@@ -147,7 +145,17 @@ export class EntitySystem {
 
   // Get drag state
   public getDragState(): DragState {
-    return this.dragState;
+    // Convert to the expected DragState format for backward compatibility
+    return {
+      isDragging: this.dragState.isDragging,
+      draggedCar:
+        this.dragState.draggedEntity &&
+        this.isTrainCar(this.dragState.draggedEntity)
+          ? (this.dragState.draggedEntity as any) // Type cast for backward compatibility
+          : null,
+      dragOffset: this.dragState.dragOffset,
+      validPositions: this.dragState.validPositions,
+    };
   }
 
   // Update method
@@ -184,7 +192,7 @@ export class EntitySystem {
     };
 
     this.dragState.isDragging = true;
-    this.dragState.draggedCar = entity as TrainCar; // TODO: Make this more generic
+    this.dragState.draggedEntity = entity;
     entity.isDragging = true;
 
     // Mark all linked entities as being dragged (for visual feedback)
@@ -200,9 +208,9 @@ export class EntitySystem {
   }
 
   public updateDrag(mousePosition: Vector2): void {
-    if (!this.dragState.isDragging || !this.dragState.draggedCar) return;
+    if (!this.dragState.isDragging || !this.dragState.draggedEntity) return;
 
-    const entity = this.dragState.draggedCar;
+    const entity = this.dragState.draggedEntity;
     const oldProgress = entity.trackProgress;
 
     // Calculate target position (mouse position adjusted for drag offset)
@@ -275,16 +283,16 @@ export class EntitySystem {
   }
 
   public endDrag(): void {
-    if (!this.dragState.isDragging || !this.dragState.draggedCar) return;
+    if (!this.dragState.isDragging || !this.dragState.draggedEntity) return;
 
-    const entity = this.dragState.draggedCar;
+    const entity = this.dragState.draggedEntity;
 
     // Clear dragging state for all linked entities
     this.setLinkedEntitiesDragging(entity, false);
 
     entity.isDragging = false;
     this.dragState.isDragging = false;
-    this.dragState.draggedCar = null;
+    this.dragState.draggedEntity = null;
     this.dragState.dragOffset = { x: 0, y: 0 };
 
     console.log(`Ended dragging entity ${entity.id}`);
@@ -348,7 +356,7 @@ export class EntitySystem {
         trackId !== currentTrackId &&
         this.isTrackOccupiedByOtherEntity(
           trackId,
-          this.dragState.draggedCar!.id
+          this.dragState.draggedEntity!.id
         )
       ) {
         continue;
@@ -416,10 +424,9 @@ export class EntitySystem {
     );
 
     // Create a temporary entity at target position to check distances
-    const tempEntity: Entity = {
-      ...movingEntity,
-      trackProgress: targetProgress,
-    };
+    const tempEntity = Object.create(Object.getPrototypeOf(movingEntity));
+    Object.assign(tempEntity, movingEntity);
+    tempEntity.trackProgress = targetProgress;
 
     for (const otherEntity of entitiesOnSameTrack) {
       console.log(
