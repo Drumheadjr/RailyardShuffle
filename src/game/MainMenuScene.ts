@@ -22,6 +22,7 @@ export class MainMenuScene implements Scene {
   private animationTime: number = 0;
   private titlePulse: number = 0;
   private assetManager: AssetManager;
+  private lastMouseDown: boolean = false;
 
   constructor(gameStateManager: GameStateManager, canvas: HTMLCanvasElement) {
     this.gameStateManager = gameStateManager;
@@ -93,12 +94,17 @@ export class MainMenuScene implements Scene {
   }
 
   public handleInput(input: InputState): void {
+    // Detect mouse click (mouse was down last frame, up this frame = click completed)
+    const mouseClicked = !input.mouse.isDown && this.lastMouseDown;
+    this.lastMouseDown = input.mouse.isDown;
+
     // Handle mouse hover and clicks
     this.buttons.forEach(button => {
       const isHovered = this.isPointInButton(input.mouse.position, button);
       button.hovered = isHovered;
 
-      if (isHovered && input.mouse.isDown) {
+      if (isHovered && mouseClicked) {
+        console.log(`Main menu button clicked: ${button.text}`);
         button.action();
       }
     });

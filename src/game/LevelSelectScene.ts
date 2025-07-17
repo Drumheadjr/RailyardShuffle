@@ -24,6 +24,7 @@ export class LevelSelectScene implements Scene {
   private backButton: { x: number; y: number; width: number; height: number };
   private assetManager: AssetManager;
   private lastMouseDown: boolean = false;
+  private backgroundLogged: boolean = false;
 
   constructor(gameStateManager: GameStateManager, levelManager: LevelManager, canvas: HTMLCanvasElement) {
     this.gameStateManager = gameStateManager;
@@ -100,8 +101,8 @@ export class LevelSelectScene implements Scene {
   }
 
   public handleInput(input: InputState): void {
-    // Detect mouse click (mouse was up last frame, down this frame)
-    const mouseClicked = input.mouse.isDown && !this.lastMouseDown;
+    // Detect mouse click (mouse was down last frame, up this frame = click completed)
+    const mouseClicked = !input.mouse.isDown && this.lastMouseDown;
     this.lastMouseDown = input.mouse.isDown;
 
     // Handle back button
@@ -181,11 +182,20 @@ export class LevelSelectScene implements Scene {
   private renderBackground(ctx: CanvasRenderingContext2D): void {
     // Try level select specific background first, then fallback to main menu background
     let backgroundImage = this.assetManager.getImage('level-select-background');
+    let backgroundSource = 'level-select-background';
+
     if (!backgroundImage) {
       backgroundImage = this.assetManager.getImage('main-menu-background');
+      backgroundSource = 'main-menu-background (fallback)';
     }
 
     if (backgroundImage) {
+      // Log which background is being used (only once)
+      if (!this.backgroundLogged) {
+        console.log(`🎨 Level Select using background: ${backgroundSource}`);
+        this.backgroundLogged = true;
+      }
+
       // Draw the background image, scaled to fit the canvas
       ctx.drawImage(backgroundImage, 0, 0, this.canvas.width, this.canvas.height);
 

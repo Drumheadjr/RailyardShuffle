@@ -119,14 +119,19 @@ export class AssetManager {
   // Fallback to main menu background if specific background doesn't exist
   public async loadBackgroundWithFallback(primaryConfig: AssetConfig, fallbackName: string = 'main-menu-background'): Promise<HTMLImageElement> {
     try {
-      return await this.loadImage(primaryConfig);
+      console.log(`Attempting to load primary background: ${primaryConfig.name} from ${primaryConfig.basePath}`);
+      const image = await this.loadImage(primaryConfig);
+      console.log(`✅ Successfully loaded primary background: ${primaryConfig.name}`);
+      return image;
     } catch (error) {
-      console.warn(`Primary background failed, falling back to: ${fallbackName}`);
+      console.warn(`❌ Primary background failed (${primaryConfig.name}), falling back to: ${fallbackName}`);
       const fallbackImage = this.getImage(fallbackName);
       if (fallbackImage) {
+        console.log(`✅ Using cached fallback background: ${fallbackName}`);
         return fallbackImage;
       }
       // If fallback also doesn't exist, try to load main menu background
+      console.log(`🔄 Loading fallback background: ${fallbackName}`);
       return this.loadMainMenuBackground();
     }
   }
