@@ -1,6 +1,6 @@
-import { GameState, Scene, GameStateType } from '@/types';
-import { InputManager } from '@/utils/InputManager';
-import { GameStateManager } from './GameStateManager';
+import { GameState, Scene, GameStateType } from "@/types";
+import { InputManager } from "@/utils/InputManager";
+import { GameStateManager } from "./GameStateManager";
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -14,9 +14,9 @@ export class GameEngine {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext("2d");
     if (!context) {
-      throw new Error('Could not get 2D context from canvas');
+      throw new Error("Could not get 2D context from canvas");
     }
     this.ctx = context;
 
@@ -29,7 +29,7 @@ export class GameEngine {
 
   private setupStateChangeListener(): void {
     // Listen for all state changes and handle scene transitions
-    Object.values(GameStateType).forEach(state => {
+    Object.values(GameStateType).forEach((state) => {
       this.gameStateManager.onStateChange(state, () => {
         this.handleStateChange(state);
       });
@@ -67,7 +67,9 @@ export class GameEngine {
     }
   }
 
-  public setSceneTransitionCallback(callback: (newState: GameStateType) => Scene | null): void {
+  public setSceneTransitionCallback(
+    callback: (newState: GameStateType) => Scene | null
+  ): void {
     this.sceneTransitionCallback = callback;
   }
 
@@ -102,9 +104,11 @@ export class GameEngine {
 
   private gameLoop = (currentTime: number): void => {
     const gameData = this.gameStateManager.getGameData();
-    if (!gameData.isRunning && this.gameStateManager.getCurrentState() === GameStateType.MAIN_MENU) {
-      // Allow main menu to run even when game is not "running"
-    } else if (!gameData.isRunning) {
+    const currentState = this.gameStateManager.getCurrentState();
+
+    // Allow menu states to run even when game is not "running"
+    const menuStates = [GameStateType.MAIN_MENU, GameStateType.LEVEL_SELECT];
+    if (!gameData.isRunning && !menuStates.includes(currentState)) {
       return;
     }
 
@@ -130,7 +134,7 @@ export class GameEngine {
 
   private render(): void {
     // Clear canvas
-    this.ctx.fillStyle = '#2c3e50';
+    this.ctx.fillStyle = "#2c3e50";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // Render current scene
@@ -146,13 +150,13 @@ export class GameEngine {
   }
 
   private renderPauseOverlay(): void {
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    
-    this.ctx.fillStyle = 'white';
-    this.ctx.font = '48px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.fillText('PAUSED', this.canvas.width / 2, this.canvas.height / 2);
+
+    this.ctx.fillStyle = "white";
+    this.ctx.font = "48px Arial";
+    this.ctx.textAlign = "center";
+    this.ctx.fillText("PAUSED", this.canvas.width / 2, this.canvas.height / 2);
   }
 
   public getGameState(): GameState {
