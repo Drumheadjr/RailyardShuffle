@@ -6,6 +6,7 @@ import { TrackSystem } from './TrackSystem';
 import { TrainCarSystem } from './TrainCarSystem';
 import { ExitSystem } from './ExitSystem';
 import { LevelBuilder } from './LevelBuilder';
+import { TRACK, TRAIN_CAR, COLORS } from '@/constants/railyard';
 
 export class RailyardGameScene implements Scene {
   private gameStateManager: GameStateManager;
@@ -163,7 +164,7 @@ export class RailyardGameScene implements Scene {
 
   public render(ctx: CanvasRenderingContext2D): void {
     // Clear background
-    ctx.fillStyle = '#2F4F2F';
+    ctx.fillStyle = COLORS.BACKGROUND;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // Render tracks
@@ -192,37 +193,42 @@ export class RailyardGameScene implements Scene {
 
     tracks.forEach(track => {
       // Track base
-      ctx.fillStyle = track.occupied ? '#8B4513' : '#A0522D';
+      ctx.fillStyle = track.occupied ? COLORS.TRACK_OCCUPIED : COLORS.TRACK_UNOCCUPIED;
       ctx.fillRect(track.position.x, track.position.y, track.size.x, track.size.y);
 
       // Track rails
-      ctx.strokeStyle = '#696969';
-      ctx.lineWidth = 4;
+      ctx.strokeStyle = COLORS.TRACK_RAILS;
+      ctx.lineWidth = TRACK.RAIL_WIDTH;
 
       switch (track.type) {
         case TrackType.STRAIGHT_HORIZONTAL:
           ctx.beginPath();
-          ctx.moveTo(track.position.x, track.position.y + 15);
-          ctx.lineTo(track.position.x + track.size.x, track.position.y + 15);
-          ctx.moveTo(track.position.x, track.position.y + 25);
-          ctx.lineTo(track.position.x + track.size.x, track.position.y + 25);
+          ctx.moveTo(track.position.x, track.position.y + TRACK.RAIL_OFFSET_1);
+          ctx.lineTo(track.position.x + track.size.x, track.position.y + TRACK.RAIL_OFFSET_1);
+          ctx.moveTo(track.position.x, track.position.y + TRACK.RAIL_OFFSET_2);
+          ctx.lineTo(track.position.x + track.size.x, track.position.y + TRACK.RAIL_OFFSET_2);
           ctx.stroke();
           break;
 
         case TrackType.STRAIGHT_VERTICAL:
           ctx.beginPath();
-          ctx.moveTo(track.position.x + 15, track.position.y);
-          ctx.lineTo(track.position.x + 15, track.position.y + track.size.y);
-          ctx.moveTo(track.position.x + 25, track.position.y);
-          ctx.lineTo(track.position.x + 25, track.position.y + track.size.y);
+          ctx.moveTo(track.position.x + TRACK.RAIL_OFFSET_1, track.position.y);
+          ctx.lineTo(track.position.x + TRACK.RAIL_OFFSET_1, track.position.y + track.size.y);
+          ctx.moveTo(track.position.x + TRACK.RAIL_OFFSET_2, track.position.y);
+          ctx.lineTo(track.position.x + TRACK.RAIL_OFFSET_2, track.position.y + track.size.y);
           ctx.stroke();
           break;
 
         default:
           // Simple representation for curves and intersections
-          ctx.strokeStyle = '#696969';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(track.position.x + 2, track.position.y + 2, track.size.x - 4, track.size.y - 4);
+          ctx.strokeStyle = COLORS.TRACK_RAILS;
+          ctx.lineWidth = TRACK.BORDER_WIDTH;
+          ctx.strokeRect(
+            track.position.x + TRACK.BORDER_OFFSET,
+            track.position.y + TRACK.BORDER_OFFSET,
+            track.size.x - TRACK.BORDER_OFFSET * 2,
+            track.size.y - TRACK.BORDER_OFFSET * 2
+          );
           break;
       }
 
@@ -281,9 +287,9 @@ export class RailyardGameScene implements Scene {
     const dragState = this.trainCarSystem.getDragState();
 
     if (dragState.isDragging && dragState.validPositions.length > 0) {
-      ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+      ctx.fillStyle = COLORS.DRAG_HIGHLIGHT;
       dragState.validPositions.forEach(pos => {
-        ctx.fillRect(pos.x, pos.y, 35, 25); // Match car size exactly
+        ctx.fillRect(pos.x, pos.y, TRAIN_CAR.WIDTH, TRAIN_CAR.HEIGHT);
       });
     }
   }

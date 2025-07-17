@@ -1,18 +1,18 @@
 import { Vector2 } from '@/types';
-import { 
-  RailyardLevel, 
-  LevelConfig, 
-  TrackSegment, 
-  TrackConnection, 
-  TrainCar, 
+import {
+  RailyardLevel,
+  LevelConfig,
+  TrackSegment,
+  TrackConnection,
+  TrainCar,
   Exit,
   TrackType,
   Direction,
-  ExitSide 
+  ExitSide
 } from '@/types/railyard';
+import { TRACK, TRAIN_CAR, EXIT, PLAY_AREA, LEVEL, COLORS } from '@/constants/railyard';
 
 export class LevelBuilder {
-  private static trackSize = 40;
 
   public static buildLevel(config: LevelConfig): RailyardLevel {
     const tracks: TrackSegment[] = [];
@@ -26,7 +26,7 @@ export class LevelBuilder {
         id: `track_${index}`,
         type: trackConfig.type,
         position: { x: trackConfig.x, y: trackConfig.y },
-        size: { x: this.trackSize, y: this.trackSize },
+        size: { x: TRACK.SIZE, y: TRACK.SIZE },
         connections: trackConfig.connections || this.getDefaultConnections(trackConfig.type),
         occupied: false
       };
@@ -61,7 +61,7 @@ export class LevelBuilder {
         const trainCar: TrainCar = {
           id: `car_${index}`,
           position,
-          size: { x: 35, y: 25 },
+          size: { x: TRAIN_CAR.WIDTH, y: TRAIN_CAR.HEIGHT },
           currentTrack: track.id,
           trackProgress: carConfig.progress,
           color: carConfig.color,
@@ -136,7 +136,7 @@ export class LevelBuilder {
     const dy = track2.position.y - track1.position.y;
 
     // Check if tracks are adjacent (exactly one track size apart)
-    if ((Math.abs(dx) === this.trackSize && dy === 0) || (Math.abs(dy) === this.trackSize && dx === 0)) {
+    if ((Math.abs(dx) === TRACK.SIZE && dy === 0) || (Math.abs(dy) === TRACK.SIZE && dx === 0)) {
       let fromDirection: Direction;
       let toDirection: Direction;
 
@@ -173,8 +173,8 @@ export class LevelBuilder {
   }
 
   private static calculateExitPosition(side: ExitSide, positionPercent: number, playArea: { width: number; height: number }): Vector2 {
-    const exitWidth = 60;
-    const exitHeight = 40;
+    const exitWidth = EXIT.WIDTH;
+    const exitHeight = EXIT.HEIGHT;
     
     switch (side) {
       case ExitSide.TOP:
@@ -203,8 +203,8 @@ export class LevelBuilder {
   }
 
   private static calculateExitSize(side: ExitSide): Vector2 {
-    const exitWidth = 60;
-    const exitHeight = 40;
+    const exitWidth = EXIT.WIDTH;
+    const exitHeight = EXIT.HEIGHT;
     
     switch (side) {
       case ExitSide.TOP:
@@ -220,53 +220,59 @@ export class LevelBuilder {
 
   private static calculateCarPosition(track: TrackSegment, progress: number): Vector2 {
     // Calculate position along track based on progress (0-1)
+    const carOffsetX = TRAIN_CAR.WIDTH / 2;
+    const carOffsetY = TRAIN_CAR.HEIGHT / 2;
+
     switch (track.type) {
       case TrackType.STRAIGHT_HORIZONTAL:
         return {
-          x: track.position.x + progress * track.size.x - 17, // Center car (35/2)
-          y: track.position.y + track.size.y / 2 - 12 // Center car (25/2)
+          x: track.position.x + progress * track.size.x - carOffsetX,
+          y: track.position.y + track.size.y / 2 - carOffsetY
         };
       case TrackType.STRAIGHT_VERTICAL:
         return {
-          x: track.position.x + track.size.x / 2 - 17,
-          y: track.position.y + progress * track.size.y - 12
+          x: track.position.x + track.size.x / 2 - carOffsetX,
+          y: track.position.y + progress * track.size.y - carOffsetY
         };
       default:
         // For curves and intersections, place at center
         return {
-          x: track.position.x + track.size.x / 2 - 17,
-          y: track.position.y + track.size.y / 2 - 12
+          x: track.position.x + track.size.x / 2 - carOffsetX,
+          y: track.position.y + track.size.y / 2 - carOffsetY
         };
     }
   }
 
   // Predefined level configurations
   public static getLevel1Config(): LevelConfig {
+    const trackY = PLAY_AREA.DEFAULT_HEIGHT / 2 - TRACK.SIZE / 2; // Center vertically
+    const startX = 100;
+
     return {
-      playArea: { width: 800, height: 600 },
+      playArea: { width: PLAY_AREA.DEFAULT_WIDTH, height: PLAY_AREA.DEFAULT_HEIGHT },
       trackLayout: [
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 100, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 140, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 180, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 220, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 260, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 300, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 340, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 380, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 420, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 460, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 500, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 540, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 580, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 620, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 660, y: 300 },
-        { type: TrackType.STRAIGHT_HORIZONTAL, x: 700, y: 300 }
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 2, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 3, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 4, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 5, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 6, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 7, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 8, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 9, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 10, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 11, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 12, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 13, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 14, y: trackY },
+        { type: TrackType.STRAIGHT_HORIZONTAL, x: startX + TRACK.SPACING * 15, y: trackY }
       ],
       exits: [
-        { side: ExitSide.RIGHT, position: 0.5, trackConnection: 15, color: '#FF6B6B' }
+        { side: ExitSide.RIGHT, position: LEVEL.EXIT_POSITION_DEFAULT, trackConnection: 15, color: COLORS.RED }
       ],
       cars: [
-        { trackIndex: 0, progress: 0.5, color: '#FF6B6B', targetExit: 0 }
+        { trackIndex: 0, progress: LEVEL.CAR_PROGRESS_DEFAULT, color: COLORS.RED, targetExit: 0 }
       ],
       objective: 'Drag the red train car to the red exit on the right'
     };

@@ -1,5 +1,6 @@
 import { Vector2 } from '@/types';
 import { TrackSegment, TrackConnection, Direction, TrackType, PathNode, TrackPath } from '@/types/railyard';
+import { CALC } from '@/constants/railyard';
 
 export class TrackSystem {
   private tracks: Map<string, TrackSegment> = new Map();
@@ -76,12 +77,12 @@ export class TrackSystem {
       case TrackType.STRAIGHT_HORIZONTAL:
         return {
           x: track.position.x + progress * track.size.x,
-          y: center.y - 12 // Offset to center on car size (25/2 ≈ 12)
+          y: center.y - CALC.CAR_OFFSET_Y
         };
 
       case TrackType.STRAIGHT_VERTICAL:
         return {
-          x: center.x - 17, // Offset to center on car size (35/2 ≈ 17)
+          x: center.x - CALC.CAR_OFFSET_X,
           y: track.position.y + progress * track.size.y
         };
 
@@ -93,14 +94,14 @@ export class TrackSystem {
 
       case TrackType.INTERSECTION:
         return {
-          x: center.x - 17,
-          y: center.y - 12
+          x: center.x - CALC.CAR_OFFSET_X,
+          y: center.y - CALC.CAR_OFFSET_Y
         };
 
       default:
         return {
-          x: center.x - 17,
-          y: center.y - 12
+          x: center.x - CALC.CAR_OFFSET_X,
+          y: center.y - CALC.CAR_OFFSET_Y
         };
     }
   }
