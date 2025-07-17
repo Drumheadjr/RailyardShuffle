@@ -1,49 +1,61 @@
 import { Vector2 } from '@/types';
 import { Locomotive, TrainCar, TrainCarType } from '@/types/railyard';
 import { SplineTrackSystem } from './SplineTrackSystem';
+import { BaseLinkableEntitySystem, LinkableEntity } from './BaseLinkableEntitySystem';
+import { TRAIN_CAR } from '@/constants/railyard';
 
-export class LocomotiveSystem {
-  private locomotives: Map<string, Locomotive> = new Map();
-  private trackSystem: SplineTrackSystem;
-
+export class LocomotiveSystem extends BaseLinkableEntitySystem {
   constructor(trackSystem: SplineTrackSystem) {
-    this.trackSystem = trackSystem;
+    super(trackSystem);
+  }
+
+  // Entity-specific behavior implementations
+  protected isDraggable(_entity: LinkableEntity): boolean {
+    return false; // Locomotives are not draggable
+  }
+
+  protected isMovable(_entity: LinkableEntity): boolean {
+    return false; // Locomotives are not movable
+  }
+
+  protected getEntitySize(entity: LinkableEntity): { width: number; height: number } {
+    if (this.isLocomotive(entity)) {
+      return { width: entity.size.x, height: entity.size.y };
+    } else {
+      return { width: TRAIN_CAR.WIDTH, height: TRAIN_CAR.HEIGHT };
+    }
   }
 
   public addLocomotive(locomotive: Locomotive): void {
-    this.locomotives.set(locomotive.id, locomotive);
-    
-    // Mark track as occupied
-    if (locomotive.currentTrack) {
-      this.trackSystem.setTrackOccupied(locomotive.currentTrack, true);
-    }
-    
+    this.addEntity(locomotive);
     console.log(`Added locomotive ${locomotive.id} at track ${locomotive.currentTrack}`);
   }
 
   public getLocomotive(id: string): Locomotive | undefined {
-    return this.locomotives.get(id);
+    const entity = this.getEntity(id);
+    return entity && this.isLocomotive(entity) ? entity : undefined;
   }
 
   public getAllLocomotives(): Locomotive[] {
-    return Array.from(this.locomotives.values());
+    return this.getAllEntities().filter(this.isLocomotive);
   }
 
   public getActiveLocomotives(): Locomotive[] {
     return this.getAllLocomotives().filter(loco => loco.isActive);
   }
 
-  // Check if a car can connect to a locomotive
-  public canCarConnectToLocomotive(car: TrainCar, locomotive: Locomotive): boolean {
+  // Check if a car can link to a locomotive (using same system as car-to-car linking)
+  public canCarLinkToLocomotive(car: TrainCar, locomotive: Locomotive): boolean {
     // Check if locomotive accepts this car type
     if (!locomotive.acceptedCarTypes.includes(car.type)) {
       console.log(`Locomotive ${locomotive.id} doesn't accept car type ${car.type}`);
       return false;
     }
 
-    // Check if locomotive has space
-    if (locomotive.connectedCars.length >= locomotive.maxCars) {
-      console.log(`Locomotive ${locomotive.id} is at capacity (${locomotive.maxCars} cars)`);
+    // Check if locomotive has space (count linked cars)
+    const linkedCarCount = this.getLinkedCarCount(locomotive);
+    if (linkedCarCount >= locomotive.maxCars) {
+      console.log(`Locomotive ${locomotive.id} is at capacity (${locomotive.maxCars} cars, currently has ${linkedCarCount})`);
       return false;
     }
 
@@ -53,67 +65,46 @@ export class LocomotiveSystem {
       return false;
     }
 
-    // Check if car is close enough to locomotive
+    // Check if car is close enough to locomotive (using same distance as car linking)
     const distance = this.calculateDistance(car.position, locomotive.position);
-    const connectionDistance = 50; // Pixels
-    
-    if (distance > connectionDistance) {
+
+    if (distance > 50) { // Same as TRAIN_CAR.LINKING_DISTANCE
       console.log(`Car ${car.id} too far from locomotive ${locomotive.id} (distance: ${distance})`);
       return false;
     }
 
-    return true;
-  }
-
-  // Connect a car to a locomotive
-  public connectCarToLocomotive(car: TrainCar, locomotive: Locomotive): boolean {
-    if (!this.canCarConnectToLocomotive(car, locomotive)) {
+    // Check if already linked
+    if (locomotive.linkedCars.includes(car.id) || car.linkedCars.includes(locomotive.id)) {
+      console.log(`Car ${car.id} already linked to locomotive ${locomotive.id}`);
       return false;
     }
 
-    // Add car to locomotive's connected cars
-    locomotive.connectedCars.push(car.id);
-    
-    // Mark car as completed
-    car.isCompleted = true;
-    car.targetLocomotive = locomotive.id;
-
-    // Position car near locomotive (for visual feedback)
-    const offset = locomotive.connectedCars.length * 40; // Space cars out
-    const locomotiveTrack = this.trackSystem.getTrack(locomotive.currentTrack!);
-    if (locomotiveTrack) {
-      // Position car slightly behind locomotive on the same track
-      const newProgress = Math.max(0, locomotive.trackProgress - (offset / 600)); // Approximate track length
-      const splinePos = this.trackSystem.getPositionOnSpline(locomotiveTrack.spline, newProgress);
-      car.position = {
-        x: splinePos.x - 17.5,
-        y: splinePos.y - 12.5
-      };
-      car.currentTrack = locomotive.currentTrack;
-      car.trackProgress = newProgress;
-    }
-
-    console.log(`Connected car ${car.id} to locomotive ${locomotive.id}`);
     return true;
   }
 
-  // Disconnect a car from a locomotive
-  public disconnectCarFromLocomotive(carId: string, locomotiveId: string): boolean {
-    const locomotive = this.locomotives.get(locomotiveId);
-    if (!locomotive) return false;
+  // Count how many cars are linked to this locomotive
+  private getLinkedCarCount(locomotive: Locomotive): number {
+    return locomotive.linkedCars.length;
+  }
 
-    const carIndex = locomotive.connectedCars.indexOf(carId);
-    if (carIndex === -1) return false;
+  // Link a car to a locomotive (wrapper for base class method)
+  public linkCarToLocomotive(car: TrainCar, locomotive: Locomotive): boolean {
+    return this.linkEntities(car, locomotive);
+  }
 
-    locomotive.connectedCars.splice(carIndex, 1);
-    console.log(`Disconnected car ${carId} from locomotive ${locomotiveId}`);
-    return true;
+  // Unlink a car from a locomotive (wrapper for base class method)
+  public unlinkCarFromLocomotive(car: TrainCar, locomotive: Locomotive): boolean {
+    // TODO: Implement unlinking in base class if needed
+    console.log(`Unlinking not yet implemented in base class for ${car.id} and ${locomotive.id}`);
+    return false;
   }
 
   // Check if a car is near any active locomotive
   public findNearbyLocomotive(car: TrainCar): Locomotive | null {
     for (const locomotive of this.getActiveLocomotives()) {
-      if (this.canCarConnectToLocomotive(car, locomotive)) {
+      // Use base class distance calculation and linking validation
+      const distance = this.getPixelDistanceBetweenEntities(car, locomotive);
+      if (distance <= TRAIN_CAR.LINKING_DISTANCE && this.canCarLinkToLocomotive(car, locomotive)) {
         return locomotive;
       }
     }
@@ -122,7 +113,10 @@ export class LocomotiveSystem {
 
   // Update locomotive positions and connections
   public update(deltaTime: number): void {
-    for (const locomotive of this.locomotives.values()) {
+    // Call base class update first
+    super.update(deltaTime);
+
+    for (const locomotive of this.getAllLocomotives()) {
       if (!locomotive.isDragging && locomotive.currentTrack) {
         // Ensure locomotive is properly positioned on spline
         const track = this.trackSystem.getTrack(locomotive.currentTrack);
@@ -142,20 +136,36 @@ export class LocomotiveSystem {
     }
   }
 
-  // Check if all required cars are connected to locomotives
+  // Check if all required cars are linked to locomotives
   public checkLevelCompletion(requiredConnections: { carId: string; locomotiveId: string }[]): boolean {
+    console.log(`Checking level completion for ${requiredConnections.length} required connections:`);
+
     for (const requirement of requiredConnections) {
-      const locomotive = this.locomotives.get(requirement.locomotiveId);
-      if (!locomotive || !locomotive.connectedCars.includes(requirement.carId)) {
+      console.log(`  Checking: car ${requirement.carId} -> locomotive ${requirement.locomotiveId}`);
+
+      const locomotive = this.getLocomotive(requirement.locomotiveId);
+      if (!locomotive) {
+        console.log(`    ❌ Locomotive ${requirement.locomotiveId} not found`);
         return false;
       }
+
+      console.log(`    Locomotive ${locomotive.id} has linked cars: [${locomotive.linkedCars.join(', ')}]`);
+
+      if (!locomotive.linkedCars.includes(requirement.carId)) {
+        console.log(`    ❌ Car ${requirement.carId} not linked to locomotive ${requirement.locomotiveId}`);
+        return false;
+      }
+
+      console.log(`    ✅ Car ${requirement.carId} is linked to locomotive ${requirement.locomotiveId}`);
     }
+
+    console.log(`🎉 Level completion check passed! All cars are linked.`);
     return true;
   }
 
   // Get locomotive at position (for clicking/interaction)
   public getLocomotiveAtPosition(position: Vector2): Locomotive | null {
-    for (const locomotive of this.locomotives.values()) {
+    for (const locomotive of this.getAllLocomotives()) {
       if (this.isPositionOnLocomotive(position, locomotive)) {
         return locomotive;
       }
@@ -176,15 +186,7 @@ export class LocomotiveSystem {
 
   // Remove locomotive
   public removeLocomotive(locomotiveId: string): void {
-    const locomotive = this.locomotives.get(locomotiveId);
-    if (locomotive) {
-      // Clear track occupation
-      if (locomotive.currentTrack) {
-        this.trackSystem.setTrackOccupied(locomotive.currentTrack, false);
-      }
-      
-      this.locomotives.delete(locomotiveId);
-    }
+    this.removeEntity(locomotiveId);
   }
 
   // Create a standard locomotive
@@ -206,7 +208,6 @@ export class LocomotiveSystem {
       isCompleted: false,
       linkedCars: [],
       acceptedCarTypes: [TrainCarType.REGULAR, TrainCarType.CARGO, TrainCarType.PASSENGER],
-      connectedCars: [],
       maxCars: 5,
       isActive: true
     };
@@ -233,7 +234,6 @@ export class LocomotiveSystem {
       isCompleted: false,
       linkedCars: [],
       acceptedCarTypes: acceptedTypes,
-      connectedCars: [],
       maxCars,
       isActive: true
     };

@@ -75,7 +75,6 @@ export interface TrainCar extends BaseTrainCar {
 export interface Locomotive extends BaseTrainCar {
   type: TrainCarType.LOCOMOTIVE;
   acceptedCarTypes: TrainCarType[]; // Which car types this locomotive accepts
-  connectedCars: string[]; // IDs of cars currently connected to this locomotive
   maxCars: number; // Maximum number of cars this locomotive can pull
   isActive: boolean; // Whether this locomotive is currently accepting cars
 }

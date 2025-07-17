@@ -48,7 +48,7 @@ export class RailyardLevel1Scene extends BaseSplineRailyardScene {
         {
           trackId: 'main_track',
           progress: 0.25, // Close to the first car for easy linking
-          color: COLORS.BLUE,
+          color: COLORS.RED,
           type: TrainCarType.REGULAR,
           targetLocomotive: 'red_locomotive'
         }

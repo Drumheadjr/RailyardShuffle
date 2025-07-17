@@ -108,7 +108,6 @@ export class SplineLevelBuilder {
           isCompleted: false,
           linkedCars: [],
           acceptedCarTypes: locoConfig.acceptedCarTypes || [TrainCarType.REGULAR],
-          connectedCars: [],
           maxCars: locoConfig.maxCars || 3,
           isActive: true
         };

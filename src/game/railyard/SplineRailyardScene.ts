@@ -55,11 +55,14 @@ export abstract class BaseSplineRailyardScene implements Scene {
 
     // Load locomotives
     level.locomotives.forEach(locomotive => {
+      console.log(`Loading locomotive: ${locomotive.id}`);
       this.locomotiveSystem.addLocomotive(locomotive);
+      this.trainCarSystem.addLocomotive(locomotive); // Also add to train car system for linking
     });
 
     // Load train cars
     level.trainCars.forEach(car => {
+      console.log(`Loading car: ${car.id} with target locomotive: ${car.targetLocomotive}`);
       this.trainCarSystem.addCar(car);
     });
 
@@ -131,35 +134,24 @@ export abstract class BaseSplineRailyardScene implements Scene {
     this.trainCarSystem.update(deltaTime);
     this.locomotiveSystem.update(deltaTime);
 
-    // Check for car-locomotive connections
-    this.checkCarLocomotiveConnections();
-
     // Check for level completion
     this.checkLevelCompletion();
   }
 
-  private checkCarLocomotiveConnections(): void {
-    const cars = this.trainCarSystem.getAllCars();
-
-    for (const car of cars) {
-      if (!car.isCompleted && !car.isDragging) {
-        const nearbyLocomotive = this.locomotiveSystem.findNearbyLocomotive(car);
-        if (nearbyLocomotive) {
-          this.locomotiveSystem.connectCarToLocomotive(car, nearbyLocomotive);
-        }
-      }
-    }
-  }
+  // Car-locomotive linking now handled automatically during drag operations
 
   private checkLevelCompletion(): void {
-    const isComplete = this.locomotiveSystem.checkLevelCompletion(this.gameState.level.objectives.requiredConnections);
+    const requiredConnections = this.gameState.level.objectives.requiredConnections;
+    console.log(`Required connections for level completion:`, requiredConnections);
+
+    const isComplete = this.locomotiveSystem.checkLevelCompletion(requiredConnections);
 
     if (isComplete && !this.gameState.isLevelComplete) {
       this.gameState.isLevelComplete = true;
       this.gameState.score += 1000;
       this.gameStateManager.updateScore(this.gameState.score);
 
-      console.log('Spline level completed!');
+      console.log('🎉 Spline level completed!');
 
       // Transition to level complete state after a delay
       setTimeout(() => {
@@ -293,12 +285,12 @@ export abstract class BaseSplineRailyardScene implements Scene {
       // Front detail
       ctx.fillRect(locomotive.position.x + locomotive.size.x - 8, locomotive.position.y + 5, 6, locomotive.size.y - 10);
 
-      // Connection indicator if locomotive has connected cars
-      if (locomotive.connectedCars.length > 0) {
+      // Connection indicator if locomotive has linked cars
+      if (locomotive.linkedCars.length > 0) {
         ctx.fillStyle = COLORS.COMPLETION_SUCCESS;
         ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(`${locomotive.connectedCars.length}`,
+        ctx.fillText(`${locomotive.linkedCars.length}`,
           locomotive.position.x + locomotive.size.x / 2,
           locomotive.position.y + locomotive.size.y / 2 + 4);
       }
