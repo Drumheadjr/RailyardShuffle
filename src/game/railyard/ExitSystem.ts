@@ -1,15 +1,15 @@
 import { Vector2 } from '@/types';
 import { Exit, ExitSide, TrainCar } from '@/types/railyard';
-import { TrackSystem } from './TrackSystem';
-import { TrainCarSystem } from './TrainCarSystem';
+import { SplineTrackSystem } from './SplineTrackSystem';
+import { SplineTrainCarSystem } from './SplineTrainCarSystem';
 
 export class ExitSystem {
   private exits: Map<string, Exit> = new Map();
-  // private trackSystem: TrackSystem; // Reserved for future use
-  private trainCarSystem: TrainCarSystem;
+  // private trackSystem: SplineTrackSystem; // Reserved for future use
+  private trainCarSystem: SplineTrainCarSystem;
   private playAreaSize: Vector2;
 
-  constructor(_trackSystem: TrackSystem, trainCarSystem: TrainCarSystem, playAreaSize: Vector2) {
+  constructor(_trackSystem: SplineTrackSystem, trainCarSystem: SplineTrainCarSystem, playAreaSize: Vector2) {
     // this.trackSystem = trackSystem; // Reserved for future use
     this.trainCarSystem = trainCarSystem;
     this.playAreaSize = playAreaSize;
@@ -157,12 +157,6 @@ export class ExitSystem {
     // Check if car can use this exit
     if (!this.canCarUseExit(car, exit)) {
       console.warn(`Car ${carId} cannot use exit ${exitId}: color mismatch`);
-      return false;
-    }
-    
-    // Check if car can reach the exit track
-    if (!this.trainCarSystem.canMoveCar(carId, exit.connectedTrack)) {
-      console.warn(`Car ${carId} cannot reach exit ${exitId}: path blocked`);
       return false;
     }
     

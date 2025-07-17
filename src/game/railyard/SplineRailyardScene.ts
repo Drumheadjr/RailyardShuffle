@@ -1,18 +1,18 @@
 import { Scene, InputState } from '@/types';
 import { GameStateManager } from '../GameStateManager';
 import { GameStateType } from '@/types';
-import { RailyardLevel, RailyardGameState, TrackType } from '@/types/railyard';
-import { TrackSystem } from './TrackSystem';
-import { TrainCarSystem } from './TrainCarSystem';
+import { RailyardLevel, RailyardGameState } from '@/types/railyard';
+import { SplineTrackSystem } from './SplineTrackSystem';
+import { SplineTrainCarSystem } from './SplineTrainCarSystem';
 import { ExitSystem } from './ExitSystem';
-import { LevelBuilder } from './LevelBuilder';
-import { TRACK, TRAIN_CAR, COLORS } from '@/constants/railyard';
+import { SplineLevelBuilder, SplineLevelConfig } from './SplineLevelBuilder';
+import { COLORS } from '@/constants/railyard';
 
-export abstract class BaseRailyardScene implements Scene {
+export abstract class BaseSplineRailyardScene implements Scene {
   private gameStateManager: GameStateManager;
   private canvas: HTMLCanvasElement;
-  private trackSystem: TrackSystem;
-  private trainCarSystem: TrainCarSystem;
+  private trackSystem: SplineTrackSystem;
+  private trainCarSystem: SplineTrainCarSystem;
   private exitSystem: ExitSystem;
   private gameState!: RailyardGameState;
   private lastMouseDown: boolean = false;
@@ -20,34 +20,34 @@ export abstract class BaseRailyardScene implements Scene {
   constructor(gameStateManager: GameStateManager, canvas: HTMLCanvasElement) {
     this.gameStateManager = gameStateManager;
     this.canvas = canvas;
-
-    // Initialize systems
-    this.trackSystem = new TrackSystem();
-    this.trainCarSystem = new TrainCarSystem(this.trackSystem);
+    
+    // Initialize spline-based systems
+    this.trackSystem = new SplineTrackSystem();
+    this.trainCarSystem = new SplineTrainCarSystem(this.trackSystem);
     this.exitSystem = new ExitSystem(
-      this.trackSystem,
-      this.trainCarSystem,
+      this.trackSystem as any, // Type compatibility - ExitSystem needs updating
+      this.trainCarSystem as any, 
       { x: canvas.width, y: canvas.height }
     );
-
+    
     // Load level configuration from subclass
-    const levelConfig = this.getLevelConfig();
-    const level = LevelBuilder.buildLevel(levelConfig);
+    const levelConfig = this.getSplineLevelConfig();
+    const level = SplineLevelBuilder.buildLevel(levelConfig);
     this.loadLevel(level);
   }
 
   // Abstract method that subclasses must implement
-  protected abstract getLevelConfig(): any;
+  protected abstract getSplineLevelConfig(): SplineLevelConfig;
 
   private loadLevel(level: RailyardLevel): void {
-    console.log(`Loading railyard level: ${level.name}`);
+    console.log(`Loading spline railyard level: ${level.name}`);
     
     // Clear existing data
-    this.trackSystem = new TrackSystem();
-    this.trainCarSystem = new TrainCarSystem(this.trackSystem);
+    this.trackSystem = new SplineTrackSystem();
+    this.trainCarSystem = new SplineTrainCarSystem(this.trackSystem);
     this.exitSystem = new ExitSystem(
-      this.trackSystem,
-      this.trainCarSystem,
+      this.trackSystem as any,
+      this.trainCarSystem as any,
       { x: level.playArea.width, y: level.playArea.height }
     );
 
@@ -85,15 +85,15 @@ export abstract class BaseRailyardScene implements Scene {
       score: 0
     };
 
-    console.log(`Level loaded: ${level.tracks.length} tracks, ${level.trainCars.length} cars, ${level.exits.length} exits`);
+    console.log(`Spline level loaded: ${level.tracks.length} tracks, ${level.trainCars.length} cars, ${level.exits.length} exits`);
   }
 
   public onEnter(): void {
-    console.log('Entered Railyard Game Scene');
+    console.log('Entered Spline Railyard Game Scene');
   }
 
   public onExit(): void {
-    console.log('Exited Railyard Game Scene');
+    console.log('Exited Spline Railyard Game Scene');
   }
 
   public handleInput(input: InputState): void {
@@ -107,7 +107,7 @@ export abstract class BaseRailyardScene implements Scene {
       console.log(`Mouse pressed at: ${input.mouse.position.x}, ${input.mouse.position.y}`);
       const car = this.trainCarSystem.getCarAtPosition(input.mouse.position);
       if (car && !car.isAtExit) {
-        console.log(`Starting drag for car: ${car.id}`);
+        console.log(`Starting spline drag for car: ${car.id}`);
         this.trainCarSystem.startDrag(car.id, input.mouse.position);
       } else {
         console.log('No car found or car is at exit');
@@ -151,7 +151,7 @@ export abstract class BaseRailyardScene implements Scene {
       this.gameState.score += 1000;
       this.gameStateManager.updateScore(this.gameState.score);
       
-      console.log('Level completed!');
+      console.log('Spline level completed!');
       
       // Transition to level complete state after a delay
       setTimeout(() => {
@@ -162,7 +162,7 @@ export abstract class BaseRailyardScene implements Scene {
   }
 
   private resetLevel(): void {
-    console.log('Resetting level...');
+    console.log('Resetting spline level...');
     this.loadLevel(this.gameState.level);
   }
 
@@ -171,8 +171,8 @@ export abstract class BaseRailyardScene implements Scene {
     ctx.fillStyle = COLORS.BACKGROUND;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Render tracks
-    this.renderTracks(ctx);
+    // Render spline tracks
+    this.renderSplineTracks(ctx);
     
     // Render exits
     this.renderExits(ctx);
@@ -192,51 +192,70 @@ export abstract class BaseRailyardScene implements Scene {
     }
   }
 
-  private renderTracks(ctx: CanvasRenderingContext2D): void {
+  private renderSplineTracks(ctx: CanvasRenderingContext2D): void {
     const tracks = this.trackSystem.getAllTracks();
-
+    
     tracks.forEach(track => {
-      // Track base
-      ctx.fillStyle = track.occupied ? COLORS.TRACK_OCCUPIED : COLORS.TRACK_UNOCCUPIED;
-      ctx.fillRect(track.position.x, track.position.y, track.size.x, track.size.y);
-
-      // Track rails
-      ctx.strokeStyle = COLORS.TRACK_RAILS;
-      ctx.lineWidth = TRACK.RAIL_WIDTH;
-
-      switch (track.type) {
-        case TrackType.STRAIGHT_HORIZONTAL:
+      // Render spline as smooth curve
+      if (track.spline.length >= 2) {
+        ctx.strokeStyle = track.occupied ? COLORS.TRACK_OCCUPIED : COLORS.TRACK_UNOCCUPIED;
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        ctx.beginPath();
+        
+        // Sample points along the spline for smooth rendering
+        const samples = 50;
+        for (let i = 0; i <= samples; i++) {
+          const t = i / samples;
+          const pos = this.trackSystem.getPositionOnSpline(track.spline, t);
+          
+          if (i === 0) {
+            ctx.moveTo(pos.x, pos.y);
+          } else {
+            ctx.lineTo(pos.x, pos.y);
+          }
+        }
+        
+        ctx.stroke();
+        
+        // Render rail lines
+        ctx.strokeStyle = COLORS.TRACK_RAILS;
+        ctx.lineWidth = 2;
+        
+        // Draw parallel rail lines
+        for (let offset of [-6, 6]) {
           ctx.beginPath();
-          ctx.moveTo(track.position.x, track.position.y + TRACK.RAIL_OFFSET_1);
-          ctx.lineTo(track.position.x + track.size.x, track.position.y + TRACK.RAIL_OFFSET_1);
-          ctx.moveTo(track.position.x, track.position.y + TRACK.RAIL_OFFSET_2);
-          ctx.lineTo(track.position.x + track.size.x, track.position.y + TRACK.RAIL_OFFSET_2);
+          for (let i = 0; i <= samples; i++) {
+            const t = i / samples;
+            const pos = this.trackSystem.getPositionOnSpline(track.spline, t);
+            
+            // Calculate perpendicular offset for rail lines
+            let perpX = 0, perpY = offset;
+            if (i < samples) {
+              const nextT = (i + 1) / samples;
+              const nextPos = this.trackSystem.getPositionOnSpline(track.spline, nextT);
+              const dx = nextPos.x - pos.x;
+              const dy = nextPos.y - pos.y;
+              const length = Math.sqrt(dx * dx + dy * dy);
+              if (length > 0) {
+                perpX = (-dy / length) * offset;
+                perpY = (dx / length) * offset;
+              }
+            }
+            
+            const railPos = { x: pos.x + perpX, y: pos.y + perpY };
+            
+            if (i === 0) {
+              ctx.moveTo(railPos.x, railPos.y);
+            } else {
+              ctx.lineTo(railPos.x, railPos.y);
+            }
+          }
           ctx.stroke();
-          break;
-
-        case TrackType.STRAIGHT_VERTICAL:
-          ctx.beginPath();
-          ctx.moveTo(track.position.x + TRACK.RAIL_OFFSET_1, track.position.y);
-          ctx.lineTo(track.position.x + TRACK.RAIL_OFFSET_1, track.position.y + track.size.y);
-          ctx.moveTo(track.position.x + TRACK.RAIL_OFFSET_2, track.position.y);
-          ctx.lineTo(track.position.x + TRACK.RAIL_OFFSET_2, track.position.y + track.size.y);
-          ctx.stroke();
-          break;
-
-        default:
-          // Simple representation for curves and intersections
-          ctx.strokeStyle = COLORS.TRACK_RAILS;
-          ctx.lineWidth = TRACK.BORDER_WIDTH;
-          ctx.strokeRect(
-            track.position.x + TRACK.BORDER_OFFSET,
-            track.position.y + TRACK.BORDER_OFFSET,
-            track.size.x - TRACK.BORDER_OFFSET * 2,
-            track.size.y - TRACK.BORDER_OFFSET * 2
-          );
-          break;
+        }
       }
-
-      // Track ID removed for cleaner look
     });
   }
 
@@ -245,16 +264,16 @@ export abstract class BaseRailyardScene implements Scene {
     
     exits.forEach(exit => {
       // Exit background
-      ctx.fillStyle = exit.color || '#32CD32';
+      ctx.fillStyle = exit.color || COLORS.EXIT_DEFAULT;
       ctx.fillRect(exit.position.x, exit.position.y, exit.size.x, exit.size.y);
       
       // Exit border
-      ctx.strokeStyle = '#228B22';
+      ctx.strokeStyle = COLORS.EXIT_BORDER;
       ctx.lineWidth = 3;
       ctx.strokeRect(exit.position.x, exit.position.y, exit.size.x, exit.size.y);
       
       // Exit arrow
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = COLORS.EXIT_ARROW;
       ctx.font = 'bold 20px Arial';
       ctx.textAlign = 'center';
       ctx.fillText('→', exit.position.x + exit.size.x / 2, exit.position.y + exit.size.y / 2 + 7);
@@ -267,7 +286,7 @@ export abstract class BaseRailyardScene implements Scene {
     cars.forEach(car => {
       // Car shadow
       if (!car.isDragging) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillStyle = COLORS.CAR_SHADOW;
         ctx.fillRect(car.position.x + 2, car.position.y + 2, car.size.x, car.size.y);
       }
       
@@ -276,12 +295,12 @@ export abstract class BaseRailyardScene implements Scene {
       ctx.fillRect(car.position.x, car.position.y, car.size.x, car.size.y);
       
       // Car border
-      ctx.strokeStyle = car.isDragging ? '#FFD700' : '#000000';
+      ctx.strokeStyle = car.isDragging ? COLORS.CAR_BORDER_DRAGGING : COLORS.CAR_BORDER_NORMAL;
       ctx.lineWidth = car.isDragging ? 3 : 2;
       ctx.strokeRect(car.position.x, car.position.y, car.size.x, car.size.y);
       
       // Car details
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = COLORS.CAR_DETAILS;
       ctx.fillRect(car.position.x + 5, car.position.y + 5, 5, 5);
       ctx.fillRect(car.position.x + car.size.x - 10, car.position.y + 5, 5, 5);
     });
@@ -289,11 +308,11 @@ export abstract class BaseRailyardScene implements Scene {
 
   private renderDragIndicators(ctx: CanvasRenderingContext2D): void {
     const dragState = this.trainCarSystem.getDragState();
-
+    
     if (dragState.isDragging && dragState.validPositions.length > 0) {
       ctx.fillStyle = COLORS.DRAG_HIGHLIGHT;
       dragState.validPositions.forEach(pos => {
-        ctx.fillRect(pos.x, pos.y, TRAIN_CAR.WIDTH, TRAIN_CAR.HEIGHT);
+        ctx.fillRect(pos.x, pos.y, 35, 25);
       });
     }
   }
@@ -302,7 +321,7 @@ export abstract class BaseRailyardScene implements Scene {
     const gameData = this.gameStateManager.getGameData();
     
     // Level info
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = COLORS.TEXT_PRIMARY;
     ctx.font = '24px Arial';
     ctx.textAlign = 'left';
     ctx.fillText(`Level ${gameData.currentLevel}: ${this.gameState.level.name}`, 20, 40);
@@ -317,23 +336,23 @@ export abstract class BaseRailyardScene implements Scene {
     
     // Instructions
     ctx.font = '14px Arial';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.fillText('Drag train cars to move them along tracks', 20, this.canvas.height - 40);
+    ctx.fillStyle = COLORS.TEXT_SECONDARY;
+    ctx.fillText('Drag train cars along spline tracks', 20, this.canvas.height - 40);
     ctx.fillText('Press R to reset, ESC for menu', 20, this.canvas.height - 20);
   }
 
   private renderCompletionMessage(ctx: CanvasRenderingContext2D): void {
     // Semi-transparent overlay
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillStyle = COLORS.COMPLETION_OVERLAY;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     
     // Completion message
-    ctx.fillStyle = '#32CD32';
+    ctx.fillStyle = COLORS.COMPLETION_SUCCESS;
     ctx.font = 'bold 48px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('LEVEL COMPLETE!', this.canvas.width / 2, this.canvas.height / 2 - 50);
     
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = COLORS.TEXT_PRIMARY;
     ctx.font = '24px Arial';
     ctx.fillText('All trains reached their destinations!', this.canvas.width / 2, this.canvas.height / 2 + 20);
   }

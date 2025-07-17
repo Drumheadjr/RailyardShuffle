@@ -1,13 +1,10 @@
 import { Vector2 } from './index';
 
 export enum TrackType {
-  STRAIGHT_HORIZONTAL = 'STRAIGHT_HORIZONTAL',
-  STRAIGHT_VERTICAL = 'STRAIGHT_VERTICAL',
-  CURVE_TOP_LEFT = 'CURVE_TOP_LEFT',
-  CURVE_TOP_RIGHT = 'CURVE_TOP_RIGHT',
-  CURVE_BOTTOM_LEFT = 'CURVE_BOTTOM_LEFT',
-  CURVE_BOTTOM_RIGHT = 'CURVE_BOTTOM_RIGHT',
-  INTERSECTION = 'INTERSECTION'
+  STRAIGHT = 'STRAIGHT',
+  CURVE = 'CURVE',
+  INTERSECTION = 'INTERSECTION',
+  SWITCH = 'SWITCH'
 }
 
 export enum Direction {
@@ -24,13 +21,21 @@ export enum ExitSide {
   RIGHT = 'RIGHT'
 }
 
+// Spline control point for smooth curves
+export interface SplinePoint {
+  position: Vector2;
+  tangent?: Vector2; // Optional tangent for curve control
+}
+
 export interface TrackSegment {
   id: string;
   type: TrackType;
-  position: Vector2;
-  size: Vector2;
+  spline: SplinePoint[]; // Array of control points defining the track path
   connections: Direction[];
   occupied: boolean;
+  // Legacy support - will be removed
+  position?: Vector2;
+  size?: Vector2;
 }
 
 export interface TrackConnection {

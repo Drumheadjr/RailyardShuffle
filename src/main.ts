@@ -3,8 +3,8 @@ import { MainMenuScene } from '@/game/MainMenuScene';
 import { LevelSelectScene } from '@/game/LevelSelectScene';
 
 import { RailyardLevel1Scene } from '@/game/levels/RailyardLevel1Scene';
-import { RailyardLevel2Scene } from '@/game/levels/RailyardLevel2Scene';
-import { RailyardLevel3Scene } from '@/game/levels/RailyardLevel3Scene';
+// import { RailyardLevel2Scene } from '@/game/levels/RailyardLevel2Scene';
+// import { RailyardLevel3Scene } from '@/game/levels/RailyardLevel3Scene';
 import { LevelManager } from '@/game/LevelManager';
 import { GameStateType, Level, Scene } from '@/types';
 
@@ -42,27 +42,26 @@ class Game {
       createScene: () => new RailyardLevel1Scene(this.engine.getGameStateManager(), this.canvas)
     };
 
-    // Register Level 2 - Advanced Railyard
-    const level2: Level = {
-      id: 2,
-      name: 'Color Sorting',
-      description: 'Move each colored car to its matching exit',
-      targetScore: 1000,
-      createScene: () => new RailyardLevel2Scene(this.engine.getGameStateManager(), this.canvas)
-    };
+    // TODO: Convert these to spline-based levels
+    // const level2: Level = {
+    //   id: 2,
+    //   name: 'Color Sorting',
+    //   description: 'Move each colored car to its matching exit',
+    //   targetScore: 1000,
+    //   createScene: () => new RailyardLevel2Scene(this.engine.getGameStateManager(), this.canvas)
+    // };
 
-    // Register Level 3 - Triple Track Challenge
-    const level3: Level = {
-      id: 3,
-      name: 'Triple Track Challenge',
-      description: 'Sort three trains: red, blue, and green cars to their matching exits',
-      targetScore: 1500,
-      createScene: () => new RailyardLevel3Scene(this.engine.getGameStateManager(), this.canvas)
-    };
+    // const level3: Level = {
+    //   id: 3,
+    //   name: 'Triple Track Challenge',
+    //   description: 'Sort three trains: red, blue, and green cars to their matching exits',
+    //   targetScore: 1500,
+    //   createScene: () => new RailyardLevel3Scene(this.engine.getGameStateManager(), this.canvas)
+    // };
 
     this.levelManager.registerLevel(level1);
-    this.levelManager.registerLevel(level2);
-    this.levelManager.registerLevel(level3);
+    // this.levelManager.registerLevel(level2);
+    // this.levelManager.registerLevel(level3);
 
     // Future levels can be added here easily:
     // this.levelManager.registerLevel(level3);
