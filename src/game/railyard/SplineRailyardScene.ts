@@ -1,7 +1,7 @@
 import { Scene, InputState } from '@/types';
 import { GameStateManager } from '../GameStateManager';
 import { GameStateType } from '@/types';
-import { RailyardLevel, RailyardGameState } from '@/types/railyard';
+import { RailyardLevel, RailyardGameState, TrainCar } from '@/types/railyard';
 import { SplineTrackSystem } from './SplineTrackSystem';
 import { SplineTrainCarSystem } from './SplineTrainCarSystem';
 import { LocomotiveSystem } from './LocomotiveSystem';
@@ -307,27 +307,86 @@ export abstract class BaseSplineRailyardScene implements Scene {
 
   private renderTrainCars(ctx: CanvasRenderingContext2D): void {
     const cars = this.trainCarSystem.getAllCars();
-    
+
+    // First, render linking connections
+    this.renderCarLinks(ctx, cars);
+
     cars.forEach(car => {
       // Car shadow
       if (!car.isDragging) {
         ctx.fillStyle = COLORS.CAR_SHADOW;
         ctx.fillRect(car.position.x + 2, car.position.y + 2, car.size.x, car.size.y);
       }
-      
+
       // Car body
       ctx.fillStyle = car.color;
       ctx.fillRect(car.position.x, car.position.y, car.size.x, car.size.y);
-      
-      // Car border
-      ctx.strokeStyle = car.isDragging ? COLORS.CAR_BORDER_DRAGGING : COLORS.CAR_BORDER_NORMAL;
-      ctx.lineWidth = car.isDragging ? 3 : 2;
+
+      // Car border (highlight if linked)
+      const isLinked = car.linkedCars.length > 0;
+      ctx.strokeStyle = car.isDragging ? COLORS.CAR_BORDER_DRAGGING :
+                       isLinked ? COLORS.COMPLETION_SUCCESS : COLORS.CAR_BORDER_NORMAL;
+      ctx.lineWidth = car.isDragging ? 3 : isLinked ? 3 : 2;
       ctx.strokeRect(car.position.x, car.position.y, car.size.x, car.size.y);
-      
+
       // Car details
       ctx.fillStyle = COLORS.CAR_DETAILS;
       ctx.fillRect(car.position.x + 5, car.position.y + 5, 5, 5);
       ctx.fillRect(car.position.x + car.size.x - 10, car.position.y + 5, 5, 5);
+
+      // Link indicator
+      if (isLinked) {
+        ctx.fillStyle = COLORS.COMPLETION_SUCCESS;
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔗', car.position.x + car.size.x / 2, car.position.y - 5);
+      }
+    });
+  }
+
+  private renderCarLinks(ctx: CanvasRenderingContext2D, cars: TrainCar[]): void {
+    const renderedLinks = new Set<string>();
+
+    cars.forEach(car => {
+      car.linkedCars.forEach(linkedCarId => {
+        // Create a unique key for this link to avoid rendering twice
+        const linkKey = [car.id, linkedCarId].sort().join('-');
+        if (renderedLinks.has(linkKey)) return;
+        renderedLinks.add(linkKey);
+
+        const linkedCar = cars.find(c => c.id === linkedCarId);
+        if (!linkedCar) return;
+
+        // Draw connection line between cars
+        ctx.strokeStyle = COLORS.COMPLETION_SUCCESS;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+
+        const car1Center = {
+          x: car.position.x + car.size.x / 2,
+          y: car.position.y + car.size.y / 2
+        };
+
+        const car2Center = {
+          x: linkedCar.position.x + linkedCar.size.x / 2,
+          y: linkedCar.position.y + linkedCar.size.y / 2
+        };
+
+        ctx.beginPath();
+        ctx.moveTo(car1Center.x, car1Center.y);
+        ctx.lineTo(car2Center.x, car2Center.y);
+        ctx.stroke();
+
+        // Draw connection points
+        ctx.fillStyle = COLORS.COMPLETION_SUCCESS;
+        ctx.beginPath();
+        ctx.arc(car1Center.x, car1Center.y, 3, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(car2Center.x, car2Center.y, 3, 0, 2 * Math.PI);
+        ctx.fill();
+      });
     });
   }
 

@@ -62,6 +62,9 @@ export interface BaseTrainCar {
   color: string;
   isDragging: boolean;
   isCompleted: boolean; // Replaces isAtExit for more general completion
+  linkedCars: string[]; // IDs of cars linked to this car
+  linkedToFront?: string; // ID of car this car is linked to in front
+  linkedToBack?: string; // ID of car this car is linked to behind
 }
 
 export interface TrainCar extends BaseTrainCar {

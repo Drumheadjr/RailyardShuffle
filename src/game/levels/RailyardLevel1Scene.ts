@@ -11,8 +11,8 @@ export class RailyardLevel1Scene extends BaseSplineRailyardScene {
 
   protected getSplineLevelConfig(): SplineLevelConfig {
     const trackY = PLAY_AREA.DEFAULT_HEIGHT / 2;
-    const startX = 100;
-    const endX = 700;
+    const startX = 0;
+    const endX = PLAY_AREA.DEFAULT_WIDTH;
 
     return {
       playArea: { width: PLAY_AREA.DEFAULT_WIDTH, height: PLAY_AREA.DEFAULT_HEIGHT },
@@ -34,7 +34,7 @@ export class RailyardLevel1Scene extends BaseSplineRailyardScene {
           progress: 0.9, // Near the right end
           color: COLORS.RED,
           acceptedCarTypes: [TrainCarType.REGULAR],
-          maxCars: 1
+          maxCars: 2
         }
       ],
       cars: [
@@ -44,9 +44,16 @@ export class RailyardLevel1Scene extends BaseSplineRailyardScene {
           color: COLORS.RED,
           type: TrainCarType.REGULAR,
           targetLocomotive: 'red_locomotive'
+        },
+        {
+          trackId: 'main_track',
+          progress: 0.25, // Close to the first car for easy linking
+          color: COLORS.BLUE,
+          type: TrainCarType.REGULAR,
+          targetLocomotive: 'red_locomotive'
         }
       ],
-      objective: 'Drag the red train car along the spline to connect it to the red locomotive'
+      objective: 'Link the train cars together and connect them to the red locomotive'
     };
   }
 }

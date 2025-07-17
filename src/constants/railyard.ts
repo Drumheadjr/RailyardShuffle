@@ -23,7 +23,9 @@ export const TRAIN_CAR = {
   DRAG_BORDER_WIDTH: 3,       // Border width when dragging
   SHADOW_OFFSET: 2,           // Shadow offset when not dragging
   DETAIL_SIZE: 5,             // Size of car detail squares
-  DETAIL_OFFSET: 5            // Offset of details from car edges
+  DETAIL_OFFSET: 5,           // Offset of details from car edges
+  LINKING_DISTANCE: 50,       // Fixed pixel distance for linking cars
+  LINKED_CAR_SPACING: 40      // Fixed pixel spacing between linked cars
 } as const;
 
 // Exit Constants

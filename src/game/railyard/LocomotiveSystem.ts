@@ -189,9 +189,9 @@ export class LocomotiveSystem {
 
   // Create a standard locomotive
   public static createStandardLocomotive(
-    id: string, 
-    trackId: string, 
-    progress: number, 
+    id: string,
+    trackId: string,
+    progress: number,
     color: string = '#2C3E50'
   ): Locomotive {
     return {
@@ -204,6 +204,7 @@ export class LocomotiveSystem {
       color,
       isDragging: false,
       isCompleted: false,
+      linkedCars: [],
       acceptedCarTypes: [TrainCarType.REGULAR, TrainCarType.CARGO, TrainCarType.PASSENGER],
       connectedCars: [],
       maxCars: 5,
@@ -230,6 +231,7 @@ export class LocomotiveSystem {
       color,
       isDragging: false,
       isCompleted: false,
+      linkedCars: [],
       acceptedCarTypes: acceptedTypes,
       connectedCars: [],
       maxCars,

@@ -106,6 +106,7 @@ export class SplineLevelBuilder {
           color: locoConfig.color || '#2C3E50',
           isDragging: false,
           isCompleted: false,
+          linkedCars: [],
           acceptedCarTypes: locoConfig.acceptedCarTypes || [TrainCarType.REGULAR],
           connectedCars: [],
           maxCars: locoConfig.maxCars || 3,
@@ -117,14 +118,14 @@ export class SplineLevelBuilder {
     });
 
     // Build train cars
-    config.cars.forEach(carConfig => {
+    config.cars.forEach((carConfig, index) => {
       const track = tracks.find(t => t.id === carConfig.trackId);
       if (track) {
         // Calculate position along spline
         const splinePos = this.getPositionOnSpline(track.spline, carConfig.progress);
 
         const trainCar: TrainCar = {
-          id: carConfig.trackId + '_car', // Simple ID generation
+          id: carConfig.trackId + '_car_' + index, // Unique ID generation
           type: (carConfig.type as TrainCarType.REGULAR | TrainCarType.CARGO | TrainCarType.PASSENGER) || TrainCarType.REGULAR,
           position: {
             x: splinePos.x - TRAIN_CAR.WIDTH / 2,
@@ -136,6 +137,7 @@ export class SplineLevelBuilder {
           color: carConfig.color,
           isDragging: false,
           isCompleted: false,
+          linkedCars: [],
           targetLocomotive: carConfig.targetLocomotive
         };
         trainCars.push(trainCar);
@@ -156,8 +158,8 @@ export class SplineLevelBuilder {
         description: config.objective,
         requiredConnections: config.cars
           .filter(car => car.targetLocomotive)
-          .map(car => ({
-            carId: car.trackId + '_car',
+          .map((car, index) => ({
+            carId: car.trackId + '_car_' + index,
             locomotiveId: car.targetLocomotive!
           }))
       }
