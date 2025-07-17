@@ -1,14 +1,16 @@
-import { GameState, Scene } from '@/types';
+import { GameState, Scene, GameStateType } from '@/types';
 import { InputManager } from '@/utils/InputManager';
+import { GameStateManager } from './GameStateManager';
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private inputManager: InputManager;
-  private gameState: GameState;
+  private gameStateManager: GameStateManager;
   private currentScene: Scene | null = null;
   private lastTime: number = 0;
   private animationId: number = 0;
+  private sceneTransitionCallback?: (newState: GameStateType) => Scene | null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -17,58 +19,104 @@ export class GameEngine {
       throw new Error('Could not get 2D context from canvas');
     }
     this.ctx = context;
-    
+
     this.inputManager = new InputManager(canvas);
-    this.gameState = {
-      isRunning: false,
-      isPaused: false,
-      score: 0,
-      level: 1
-    };
+    this.gameStateManager = new GameStateManager();
+
+    // Set up state change listener
+    this.setupStateChangeListener();
+  }
+
+  private setupStateChangeListener(): void {
+    // Listen for all state changes and handle scene transitions
+    Object.values(GameStateType).forEach(state => {
+      this.gameStateManager.onStateChange(state, () => {
+        this.handleStateChange(state);
+      });
+    });
+  }
+
+  private handleStateChange(newState: GameStateType): void {
+    console.log(`Handling state change to: ${newState}`);
+
+    // Call onExit for current scene
+    if (this.currentScene && this.currentScene.onExit) {
+      this.currentScene.onExit();
+    }
+
+    // Get new scene from callback
+    if (this.sceneTransitionCallback) {
+      this.currentScene = this.sceneTransitionCallback(newState);
+    }
+
+    // Call onEnter for new scene
+    if (this.currentScene && this.currentScene.onEnter) {
+      this.currentScene.onEnter();
+    }
   }
 
   public setScene(scene: Scene): void {
+    if (this.currentScene && this.currentScene.onExit) {
+      this.currentScene.onExit();
+    }
+
     this.currentScene = scene;
+
+    if (this.currentScene && this.currentScene.onEnter) {
+      this.currentScene.onEnter();
+    }
+  }
+
+  public setSceneTransitionCallback(callback: (newState: GameStateType) => Scene | null): void {
+    this.sceneTransitionCallback = callback;
   }
 
   public start(): void {
-    if (this.gameState.isRunning) return;
-    
-    this.gameState.isRunning = true;
-    this.gameState.isPaused = false;
+    const gameData = this.gameStateManager.getGameData();
+    if (gameData.isRunning) return;
+
+    this.gameStateManager.setState(GameStateType.MAIN_MENU);
     this.lastTime = performance.now();
     this.animationId = requestAnimationFrame(this.gameLoop);
   }
 
   public pause(): void {
-    this.gameState.isPaused = !this.gameState.isPaused;
+    const currentState = this.gameStateManager.getCurrentState();
+    if (currentState === GameStateType.PLAYING) {
+      this.gameStateManager.setState(GameStateType.PAUSED);
+    } else if (currentState === GameStateType.PAUSED) {
+      this.gameStateManager.setState(GameStateType.PLAYING);
+    }
   }
 
   public stop(): void {
-    this.gameState.isRunning = false;
+    this.gameStateManager.resetGame();
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
     }
   }
 
   public reset(): void {
-    this.gameState.score = 0;
-    this.gameState.level = 1;
-    this.gameState.isPaused = false;
+    this.gameStateManager.resetGame();
   }
 
   private gameLoop = (currentTime: number): void => {
-    if (!this.gameState.isRunning) return;
+    const gameData = this.gameStateManager.getGameData();
+    if (!gameData.isRunning && this.gameStateManager.getCurrentState() === GameStateType.MAIN_MENU) {
+      // Allow main menu to run even when game is not "running"
+    } else if (!gameData.isRunning) {
+      return;
+    }
 
     const deltaTime = currentTime - this.lastTime;
     this.lastTime = currentTime;
 
-    if (!this.gameState.isPaused) {
+    if (!gameData.isPaused) {
       this.update(deltaTime);
     }
-    
+
     this.render();
-    
+
     this.animationId = requestAnimationFrame(this.gameLoop);
   };
 
@@ -91,7 +139,8 @@ export class GameEngine {
     }
 
     // Render pause overlay if paused
-    if (this.gameState.isPaused) {
+    const gameData = this.gameStateManager.getGameData();
+    if (gameData.isPaused) {
       this.renderPauseOverlay();
     }
   }
@@ -107,7 +156,11 @@ export class GameEngine {
   }
 
   public getGameState(): GameState {
-    return { ...this.gameState };
+    return this.gameStateManager.getGameData();
+  }
+
+  public getGameStateManager(): GameStateManager {
+    return this.gameStateManager;
   }
 
   public getCanvas(): HTMLCanvasElement {

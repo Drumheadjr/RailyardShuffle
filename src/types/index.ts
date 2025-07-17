@@ -3,11 +3,23 @@ export interface Vector2 {
   y: number;
 }
 
+export enum GameStateType {
+  MAIN_MENU = 'MAIN_MENU',
+  LEVEL_SELECT = 'LEVEL_SELECT',
+  PLAYING = 'PLAYING',
+  PAUSED = 'PAUSED',
+  GAME_OVER = 'GAME_OVER',
+  LEVEL_COMPLETE = 'LEVEL_COMPLETE',
+  SETTINGS = 'SETTINGS'
+}
+
 export interface GameState {
   isRunning: boolean;
   isPaused: boolean;
   score: number;
-  level: number;
+  currentLevel: number;
+  currentState: GameStateType;
+  lives: number;
 }
 
 export interface InputState {
@@ -32,4 +44,24 @@ export interface Scene {
   update(deltaTime: number): void;
   render(ctx: CanvasRenderingContext2D): void;
   handleInput(input: InputState): void;
+  onEnter?(): void;
+  onExit?(): void;
+}
+
+export interface Level {
+  id: number;
+  name: string;
+  description: string;
+  targetScore?: number;
+  timeLimit?: number;
+  createScene(): Scene;
+}
+
+export interface GameStateManager {
+  getCurrentState(): GameStateType;
+  setState(state: GameStateType): void;
+  getGameData(): GameState;
+  updateScore(points: number): void;
+  nextLevel(): void;
+  resetGame(): void;
 }
