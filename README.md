@@ -33,6 +33,29 @@ npm run build
 ```
 Builds the project for production in the `dist/` folder.
 
+### GitHub Pages Deployment
+
+This project is configured for automatic deployment to GitHub Pages.
+
+#### Automatic Deployment
+The project will automatically deploy to GitHub Pages when you push to the `main` or `master` branch. The GitHub Actions workflow will:
+1. Build the project for production
+2. Run type checking
+3. Deploy to GitHub Pages
+
+#### Manual Deployment
+You can also deploy manually using:
+```bash
+npm run deploy
+```
+
+#### Setup Requirements
+1. Enable GitHub Pages in your repository settings
+2. Set the source to "GitHub Actions"
+3. Ensure the repository name matches the base path in `vite.config.ts` (currently set to `/railyard-shuffle/`)
+
+The deployed game will be available at: `https://yourusername.github.io/railyard-shuffle/`
+
 ### Preview Production Build
 ```bash
 npm run preview

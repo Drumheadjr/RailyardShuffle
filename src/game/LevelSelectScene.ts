@@ -1,8 +1,8 @@
-import { Scene, InputState, Vector2, Level } from '@/types';
-import { GameStateManager } from './GameStateManager';
-import { LevelManager } from './LevelManager';
-import { GameStateType } from '@/types';
-import { AssetManager } from '@/utils/AssetManager';
+import { Scene, InputState, Vector2, Level } from "@/types";
+import { GameStateManager } from "./GameStateManager";
+import { LevelManager } from "./LevelManager";
+import { GameStateType } from "@/types";
+import { AssetManager } from "@/utils/AssetManager";
 
 interface LevelCard {
   level: Level;
@@ -26,18 +26,22 @@ export class LevelSelectScene implements Scene {
   private lastMouseDown: boolean = false;
   private backgroundLogged: boolean = false;
 
-  constructor(gameStateManager: GameStateManager, levelManager: LevelManager, canvas: HTMLCanvasElement) {
+  constructor(
+    gameStateManager: GameStateManager,
+    levelManager: LevelManager,
+    canvas: HTMLCanvasElement
+  ) {
     this.gameStateManager = gameStateManager;
     this.levelManager = levelManager;
     this.canvas = canvas;
     this.assetManager = AssetManager.getInstance();
-    
+
     // Setup back button
     this.backButton = {
       x: 50,
       y: 50,
       width: 100,
-      height: 40
+      height: 40,
     };
 
     this.loadAssets();
@@ -47,14 +51,17 @@ export class LevelSelectScene implements Scene {
   private async loadAssets(): Promise<void> {
     try {
       // Try to load level select specific background, fallback to main menu background
-      await this.assetManager.loadBackgroundWithFallback({
-        name: 'level-select-background',
-        basePath: '/assets/images/level-select-01',
-        extensions: ['.png', '.jpg', '.jpeg', '.webp', '.gif']
-      }, 'main-menu-background');
-      console.log('Level select assets loaded successfully');
+      await this.assetManager.loadBackgroundWithFallback(
+        {
+          name: "level-select-background",
+          basePath: "assets/images/level-select-01",
+          extensions: [".png", ".jpg", ".jpeg", ".webp", ".gif"],
+        },
+        "main-menu-background"
+      );
+      console.log("Level select assets loaded successfully");
     } catch (error) {
-      console.warn('Failed to load level select background:', error);
+      console.warn("Failed to load level select background:", error);
     }
   }
 
@@ -64,13 +71,16 @@ export class LevelSelectScene implements Scene {
     const cardWidth = 150;
     const cardHeight = 120;
     const cardSpacing = 20;
-    const startX = (this.canvas.width - (cardsPerRow * cardWidth + (cardsPerRow - 1) * cardSpacing)) / 2;
+    const startX =
+      (this.canvas.width -
+        (cardsPerRow * cardWidth + (cardsPerRow - 1) * cardSpacing)) /
+      2;
     const startY = 150;
 
     this.levelCards = levels.map((level, index) => {
       const row = Math.floor(index / cardsPerRow);
       const col = index % cardsPerRow;
-      
+
       return {
         level,
         x: startX + col * (cardWidth + cardSpacing),
@@ -78,7 +88,7 @@ export class LevelSelectScene implements Scene {
         width: cardWidth,
         height: cardHeight,
         hovered: false,
-        completed: this.isLevelCompleted(level.id)
+        completed: this.isLevelCompleted(level.id),
       };
     });
   }
@@ -91,13 +101,13 @@ export class LevelSelectScene implements Scene {
   }
 
   public onEnter(): void {
-    console.log('Entered Level Select');
+    console.log("Entered Level Select");
     this.animationTime = 0;
     this.setupLevelCards(); // Refresh level cards in case new levels were added
   }
 
   public onExit(): void {
-    console.log('Exited Level Select');
+    console.log("Exited Level Select");
   }
 
   public handleInput(input: InputState): void {
@@ -106,15 +116,18 @@ export class LevelSelectScene implements Scene {
     this.lastMouseDown = input.mouse.isDown;
 
     // Handle back button
-    this.backButtonHovered = this.isPointInRect(input.mouse.position, this.backButton);
+    this.backButtonHovered = this.isPointInRect(
+      input.mouse.position,
+      this.backButton
+    );
     if (this.backButtonHovered && mouseClicked) {
-      console.log('Back button clicked');
+      console.log("Back button clicked");
       this.gameStateManager.setState(GameStateType.MAIN_MENU);
       return;
     }
 
     // Handle level card interactions
-    this.levelCards.forEach(card => {
+    this.levelCards.forEach((card) => {
       card.hovered = this.isPointInRect(input.mouse.position, card);
 
       if (card.hovered && mouseClicked) {
@@ -124,7 +137,7 @@ export class LevelSelectScene implements Scene {
     });
 
     // Keyboard shortcuts
-    if (input.keys.has('Escape')) {
+    if (input.keys.has("Escape")) {
       this.gameStateManager.setState(GameStateType.MAIN_MENU);
     }
 
@@ -140,11 +153,16 @@ export class LevelSelectScene implements Scene {
     }
   }
 
-  private isPointInRect(point: Vector2, rect: { x: number; y: number; width: number; height: number }): boolean {
-    return point.x >= rect.x &&
-           point.x <= rect.x + rect.width &&
-           point.y >= rect.y &&
-           point.y <= rect.y + rect.height;
+  private isPointInRect(
+    point: Vector2,
+    rect: { x: number; y: number; width: number; height: number }
+  ): boolean {
+    return (
+      point.x >= rect.x &&
+      point.x <= rect.x + rect.width &&
+      point.y >= rect.y &&
+      point.y <= rect.y + rect.height
+    );
   }
 
   private selectLevel(level: Level): void {
@@ -165,28 +183,28 @@ export class LevelSelectScene implements Scene {
   public render(ctx: CanvasRenderingContext2D): void {
     // Clear background with gradient
     this.renderBackground(ctx);
-    
+
     // Render title
     this.renderTitle(ctx);
-    
+
     // Render back button
     this.renderBackButton(ctx);
-    
+
     // Render level cards
     this.renderLevelCards(ctx);
-    
+
     // Render instructions
     this.renderInstructions(ctx);
   }
 
   private renderBackground(ctx: CanvasRenderingContext2D): void {
     // Try level select specific background first, then fallback to main menu background
-    let backgroundImage = this.assetManager.getImage('level-select-background');
-    let backgroundSource = 'level-select-background';
+    let backgroundImage = this.assetManager.getImage("level-select-background");
+    let backgroundSource = "level-select-background";
 
     if (!backgroundImage) {
-      backgroundImage = this.assetManager.getImage('main-menu-background');
-      backgroundSource = 'main-menu-background (fallback)';
+      backgroundImage = this.assetManager.getImage("main-menu-background");
+      backgroundSource = "main-menu-background (fallback)";
     }
 
     if (backgroundImage) {
@@ -197,24 +215,41 @@ export class LevelSelectScene implements Scene {
       }
 
       // Draw the background image, scaled to fit the canvas
-      ctx.drawImage(backgroundImage, 0, 0, this.canvas.width, this.canvas.height);
+      ctx.drawImage(
+        backgroundImage,
+        0,
+        0,
+        this.canvas.width,
+        this.canvas.height
+      );
 
       // Add a darker overlay for better readability of level cards
       const overlay = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-      overlay.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
-      overlay.addColorStop(0.5, 'rgba(0, 0, 0, 0.3)');
-      overlay.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+      overlay.addColorStop(0, "rgba(0, 0, 0, 0.2)");
+      overlay.addColorStop(0.5, "rgba(0, 0, 0, 0.3)");
+      overlay.addColorStop(1, "rgba(0, 0, 0, 0.4)");
 
       ctx.fillStyle = overlay;
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     } else {
       // Fallback gradient background while image loads or if it fails
-      const gradient = ctx.createLinearGradient(0, 0, this.canvas.width, this.canvas.height);
+      const gradient = ctx.createLinearGradient(
+        0,
+        0,
+        this.canvas.width,
+        this.canvas.height
+      );
       const time = this.animationTime * 0.3;
 
       gradient.addColorStop(0, `hsl(${200 + Math.sin(time) * 15}, 60%, 25%)`);
-      gradient.addColorStop(0.5, `hsl(${220 + Math.cos(time * 0.8) * 10}, 70%, 20%)`);
-      gradient.addColorStop(1, `hsl(${180 + Math.sin(time * 1.1) * 20}, 50%, 30%)`);
+      gradient.addColorStop(
+        0.5,
+        `hsl(${220 + Math.cos(time * 0.8) * 10}, 70%, 20%)`
+      );
+      gradient.addColorStop(
+        1,
+        `hsl(${180 + Math.sin(time * 1.1) * 20}, 50%, 30%)`
+      );
 
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -224,100 +259,109 @@ export class LevelSelectScene implements Scene {
   private renderTitle(ctx: CanvasRenderingContext2D): void {
     const centerX = this.canvas.width / 2;
     const titleY = 80;
-    
+
     // Title shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.font = 'bold 36px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('SELECT LEVEL', centerX + 2, titleY + 2);
-    
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.font = "bold 36px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("SELECT LEVEL", centerX + 2, titleY + 2);
+
     // Main title
     const gradient = ctx.createLinearGradient(0, titleY - 20, 0, titleY + 20);
-    gradient.addColorStop(0, '#FFD700');
-    gradient.addColorStop(0.5, '#FFA500');
-    gradient.addColorStop(1, '#FF6347');
-    
+    gradient.addColorStop(0, "#FFD700");
+    gradient.addColorStop(0.5, "#FFA500");
+    gradient.addColorStop(1, "#FF6347");
+
     ctx.fillStyle = gradient;
-    ctx.fillText('SELECT LEVEL', centerX, titleY);
+    ctx.fillText("SELECT LEVEL", centerX, titleY);
   }
 
   private renderBackButton(ctx: CanvasRenderingContext2D): void {
     const button = this.backButton;
-    
+
     // Button shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
     ctx.fillRect(button.x + 2, button.y + 2, button.width, button.height);
-    
+
     // Button background
-    ctx.fillStyle = this.backButtonHovered ? '#555' : '#333';
+    ctx.fillStyle = this.backButtonHovered ? "#555" : "#333";
     ctx.fillRect(button.x, button.y, button.width, button.height);
-    
+
     // Button border
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
     ctx.lineWidth = 2;
     ctx.strokeRect(button.x, button.y, button.width, button.height);
-    
+
     // Button text
-    ctx.fillStyle = 'white';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('← BACK', button.x + button.width / 2, button.y + button.height / 2 + 6);
+    ctx.fillStyle = "white";
+    ctx.font = "16px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      "← BACK",
+      button.x + button.width / 2,
+      button.y + button.height / 2 + 6
+    );
   }
 
   private renderLevelCards(ctx: CanvasRenderingContext2D): void {
-    this.levelCards.forEach(card => {
+    this.levelCards.forEach((card) => {
       // Card shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
       ctx.fillRect(card.x + 3, card.y + 3, card.width, card.height);
-      
+
       // Card background
-      let cardColor = '#2C3E50';
+      let cardColor = "#2C3E50";
       if (card.completed) {
-        cardColor = '#27AE60'; // Green for completed
+        cardColor = "#27AE60"; // Green for completed
       } else if (card.level.id === this.gameStateManager.getCurrentLevel()) {
-        cardColor = '#3498DB'; // Blue for current level
+        cardColor = "#3498DB"; // Blue for current level
       }
-      
+
       if (card.hovered) {
         cardColor = this.lightenColor(cardColor, 20);
       }
-      
+
       ctx.fillStyle = cardColor;
       ctx.fillRect(card.x, card.y, card.width, card.height);
-      
+
       // Card border
-      ctx.strokeStyle = card.hovered ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.3)';
+      ctx.strokeStyle = card.hovered
+        ? "rgba(255, 255, 255, 0.8)"
+        : "rgba(255, 255, 255, 0.3)";
       ctx.lineWidth = card.hovered ? 3 : 2;
       ctx.strokeRect(card.x, card.y, card.width, card.height);
-      
+
       // Level number (large)
-      ctx.fillStyle = 'white';
-      ctx.font = 'bold 32px Arial';
-      ctx.textAlign = 'center';
+      ctx.fillStyle = "white";
+      ctx.font = "bold 32px Arial";
+      ctx.textAlign = "center";
       ctx.fillText(
         card.level.id.toString(),
         card.x + card.width / 2,
         card.y + 40
       );
-      
+
       // Level name
-      ctx.font = 'bold 14px Arial';
-      ctx.fillText(
-        card.level.name,
-        card.x + card.width / 2,
-        card.y + 65
-      );
-      
+      ctx.font = "bold 14px Arial";
+      ctx.fillText(card.level.name, card.x + card.width / 2, card.y + 65);
+
       // Level description (wrapped)
-      ctx.font = '12px Arial';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      this.wrapText(ctx, card.level.description || '', card.x + card.width / 2, card.y + 85, card.width - 10, 14);
-      
+      ctx.font = "12px Arial";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+      this.wrapText(
+        ctx,
+        card.level.description || "",
+        card.x + card.width / 2,
+        card.y + 85,
+        card.width - 10,
+        14
+      );
+
       // Completion indicator
       if (card.completed) {
-        ctx.fillStyle = '#F1C40F';
-        ctx.font = 'bold 16px Arial';
-        ctx.fillText('★', card.x + card.width - 20, card.y + 20);
+        ctx.fillStyle = "#F1C40F";
+        ctx.font = "bold 16px Arial";
+        ctx.fillText("★", card.x + card.width - 20, card.y + 20);
       }
     });
   }
@@ -327,26 +371,41 @@ export class LevelSelectScene implements Scene {
     const num = parseInt(color.replace("#", ""), 16);
     const amt = Math.round(2.55 * percent);
     const R = (num >> 16) + amt;
-    const G = (num >> 8 & 0x00FF) + amt;
-    const B = (num & 0x0000FF) + amt;
-    return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
-      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
-      (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+    const G = ((num >> 8) & 0x00ff) + amt;
+    const B = (num & 0x0000ff) + amt;
+    return (
+      "#" +
+      (
+        0x1000000 +
+        (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+        (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+        (B < 255 ? (B < 1 ? 0 : B) : 255)
+      )
+        .toString(16)
+        .slice(1)
+    );
   }
 
-  private wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number): void {
-    const words = text.split(' ');
-    let line = '';
+  private wrapText(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    lineHeight: number
+  ): void {
+    const words = text.split(" ");
+    let line = "";
     let currentY = y;
 
     for (let n = 0; n < words.length; n++) {
-      const testLine = line + words[n] + ' ';
+      const testLine = line + words[n] + " ";
       const metrics = ctx.measureText(testLine);
       const testWidth = metrics.width;
-      
+
       if (testWidth > maxWidth && n > 0) {
         ctx.fillText(line, x, currentY);
-        line = words[n] + ' ';
+        line = words[n] + " ";
         currentY += lineHeight;
       } else {
         line = testLine;
@@ -357,15 +416,15 @@ export class LevelSelectScene implements Scene {
 
   private renderInstructions(ctx: CanvasRenderingContext2D): void {
     const instructions = [
-      'Click on any level to play it',
-      'Press number keys (1-9) for quick selection',
-      'Press ESC or click BACK to return to main menu'
+      "Click on any level to play it",
+      "Press number keys (1-9) for quick selection",
+      "Press ESC or click BACK to return to main menu",
     ];
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'center';
-    
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.font = "14px Arial";
+    ctx.textAlign = "center";
+
     instructions.forEach((instruction, index) => {
       ctx.fillText(
         instruction,

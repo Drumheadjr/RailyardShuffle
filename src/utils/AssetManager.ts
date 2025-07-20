@@ -8,9 +8,23 @@ export class AssetManager {
   private static instance: AssetManager;
   private images: Map<string, HTMLImageElement> = new Map();
   private loadingPromises: Map<string, Promise<HTMLImageElement>> = new Map();
-  private defaultExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
+  private defaultExtensions = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 
   private constructor() {}
+
+  // Get the correct base path for assets based on environment
+  private getAssetPath(path: string): string {
+    // Remove leading slash if present
+    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+
+    // In production (GitHub Pages), we need to include the base path
+    if (import.meta.env.PROD) {
+      return `/railyard-shuffle/${cleanPath}`;
+    }
+
+    // In development, use the path as-is
+    return `/${cleanPath}`;
+  }
 
   public static getInstance(): AssetManager {
     if (!AssetManager.instance) {
@@ -33,7 +47,11 @@ export class AssetManager {
     }
 
     // Create new loading promise
-    const loadingPromise = this.tryLoadWithExtensions(basePath, extensions, name);
+    const loadingPromise = this.tryLoadWithExtensions(
+      basePath,
+      extensions,
+      name
+    );
     this.loadingPromises.set(name, loadingPromise);
 
     try {
@@ -49,18 +67,25 @@ export class AssetManager {
     }
   }
 
-  private async tryLoadWithExtensions(basePath: string, extensions: string[], name: string): Promise<HTMLImageElement> {
+  private async tryLoadWithExtensions(
+    basePath: string,
+    extensions: string[],
+    name: string
+  ): Promise<HTMLImageElement> {
     for (const ext of extensions) {
       try {
-        const image = await this.loadSingleImage(`${basePath}${ext}`);
-        console.log(`Loaded ${name} with extension: ${ext}`);
+        const fullPath = this.getAssetPath(`${basePath}${ext}`);
+        const image = await this.loadSingleImage(fullPath);
+        console.log(`Loaded ${name} with extension: ${ext} from ${fullPath}`);
         return image;
       } catch (error) {
         // Continue to next extension
         continue;
       }
     }
-    throw new Error(`Could not load image ${name} with any of the provided extensions`);
+    throw new Error(
+      `Could not load image ${name} with any of the provided extensions`
+    );
   }
 
   private loadSingleImage(src: string): Promise<HTMLImageElement> {
@@ -81,50 +106,59 @@ export class AssetManager {
   }
 
   public preloadImages(configs: AssetConfig[]): Promise<HTMLImageElement[]> {
-    const promises = configs.map(config => this.loadImage(config));
+    const promises = configs.map((config) => this.loadImage(config));
     return Promise.all(promises);
   }
 
   public clearCache(): void {
     this.images.clear();
     this.loadingPromises.clear();
-    console.log('Asset cache cleared');
+    console.log("Asset cache cleared");
   }
 
   // Convenience methods for common background images
   public async loadMainMenuBackground(): Promise<HTMLImageElement> {
     return this.loadImage({
-      name: 'main-menu-background',
-      basePath: '/assets/images/main-menu-01',
-      extensions: this.defaultExtensions
+      name: "main-menu-background",
+      basePath: "assets/images/main-menu-01",
+      extensions: this.defaultExtensions,
     });
   }
 
   public async loadLevelSelectBackground(): Promise<HTMLImageElement> {
     return this.loadImage({
-      name: 'level-select-background',
-      basePath: '/assets/images/level-select-01',
-      extensions: this.defaultExtensions
+      name: "level-select-background",
+      basePath: "assets/images/level-select-01",
+      extensions: this.defaultExtensions,
     });
   }
 
   public async loadGameplayBackground(): Promise<HTMLImageElement> {
     return this.loadImage({
-      name: 'gameplay-background',
-      basePath: '/assets/images/gameplay-01',
-      extensions: this.defaultExtensions
+      name: "gameplay-background",
+      basePath: "assets/images/gameplay-01",
+      extensions: this.defaultExtensions,
     });
   }
 
   // Fallback to main menu background if specific background doesn't exist
-  public async loadBackgroundWithFallback(primaryConfig: AssetConfig, fallbackName: string = 'main-menu-background'): Promise<HTMLImageElement> {
+  public async loadBackgroundWithFallback(
+    primaryConfig: AssetConfig,
+    fallbackName: string = "main-menu-background"
+  ): Promise<HTMLImageElement> {
     try {
-      console.log(`Attempting to load primary background: ${primaryConfig.name} from ${primaryConfig.basePath}`);
+      console.log(
+        `Attempting to load primary background: ${primaryConfig.name} from ${primaryConfig.basePath}`
+      );
       const image = await this.loadImage(primaryConfig);
-      console.log(`✅ Successfully loaded primary background: ${primaryConfig.name}`);
+      console.log(
+        `✅ Successfully loaded primary background: ${primaryConfig.name}`
+      );
       return image;
     } catch (error) {
-      console.warn(`❌ Primary background failed (${primaryConfig.name}), falling back to: ${fallbackName}`);
+      console.warn(
+        `❌ Primary background failed (${primaryConfig.name}), falling back to: ${fallbackName}`
+      );
       const fallbackImage = this.getImage(fallbackName);
       if (fallbackImage) {
         console.log(`✅ Using cached fallback background: ${fallbackName}`);
@@ -139,9 +173,9 @@ export class AssetManager {
   // Load boxcar image for train cars
   public async loadBoxcarImage(): Promise<HTMLImageElement> {
     return this.loadImage({
-      name: 'boxcar',
-      basePath: '/assets/images/boxcar-01',
-      extensions: ['.png']
+      name: "boxcar",
+      basePath: "assets/images/boxcar-01",
+      extensions: [".png"],
     });
   }
 
@@ -156,8 +190,8 @@ export class AssetManager {
     threshold: number = 240 // RGB values above this are considered "white"
   ): void {
     // Create a temporary canvas to process the image
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d')!;
+    const tempCanvas = document.createElement("canvas");
+    const tempCtx = tempCanvas.getContext("2d")!;
 
     tempCanvas.width = image.width;
     tempCanvas.height = image.height;
@@ -201,7 +235,7 @@ export class AssetManager {
     ctx.save();
 
     // Set blend mode to multiply (this will make white transparent)
-    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalCompositeOperation = "multiply";
 
     // Draw the image
     ctx.drawImage(image, dx, dy, dw, dh);
@@ -226,7 +260,7 @@ export class AssetManager {
 
     // Then apply color tint using blend mode
     ctx.save();
-    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalCompositeOperation = "multiply";
     ctx.fillStyle = tintColor;
     ctx.fillRect(dx, dy, dw, dh);
     ctx.restore();
